@@ -38,3 +38,16 @@ temp/
 # Backups
 *.bak
 *.old
+
+# Android Studio / IntelliJ
+.idea/
+**/.idea/
+*.iml
+
+# Android local SDK config
+local.properties
+**/local.properties
+
+# Android build outputs
+**/build/
+**/.gradle/
