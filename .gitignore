@@ -1,0 +1,40 @@
+﻿# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+
+# Android / Gradle
+.gradle/
+build/
+app/build/
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Kotlin / Java
+*.class
+*.jar
+*.war
+*.ear
+
+# Logs
+*.log
+
+# Arquivos temporarios
+tmp/
+temp/
+*.tmp
+
+# Arduino
+*.hex
+*.elf
+
+# Backups
+*.bak
+*.old
