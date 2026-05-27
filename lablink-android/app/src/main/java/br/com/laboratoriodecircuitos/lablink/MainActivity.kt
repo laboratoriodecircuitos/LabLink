@@ -89,11 +89,17 @@ private fun LabLinkApp() {
         }.start()
     }
 
-    fun sendPing() {
-        bluetoothState = bluetoothService.sendCommandAndReadResponse(
-            currentState = bluetoothState,
-            command = "PING",
-        )
+    fun sendCommand(command: String) {
+        Thread {
+            val resultState = bluetoothService.sendCommandAndReadResponse(
+                currentState = bluetoothState,
+                command = command,
+            )
+
+            mainHandler.post {
+                bluetoothState = resultState
+            }
+        }.start()
     }
 
     when (currentScreen) {
@@ -125,7 +131,13 @@ private fun LabLinkApp() {
                 connectSelectedDevice()
             },
             onSendPing = {
-                sendPing()
+                sendCommand("PING")
+            },
+            onTurnLedOn = {
+                sendCommand("LED:ON")
+            },
+            onTurnLedOff = {
+                sendCommand("LED:OFF")
             },
             onBack = { currentScreen = LabLinkScreen.Home },
         )

@@ -2,11 +2,13 @@
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -37,6 +39,8 @@ fun ConnectionScreen(
     onSelectDevice: (BluetoothDeviceInfo) -> Unit,
     onConnectSelectedDevice: () -> Unit,
     onSendPing: () -> Unit,
+    onTurnLedOn: () -> Unit,
+    onTurnLedOff: () -> Unit,
     onBack: () -> Unit,
 ) {
     Surface(
@@ -75,6 +79,14 @@ fun ConnectionScreen(
                 devices = bluetoothState.pairedDevices,
                 selectedDevice = bluetoothState.selectedDevice,
                 onSelectDevice = onSelectDevice,
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LedControlCard(
+                isConnected = bluetoothState.status == BluetoothConnectionStatus.Connected,
+                onTurnLedOn = onTurnLedOn,
+                onTurnLedOff = onTurnLedOff,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -289,6 +301,54 @@ private fun PairedDevicesCard(
 }
 
 @Composable
+private fun LedControlCard(
+    isConnected: Boolean,
+    onTurnLedOn: () -> Unit,
+    onTurnLedOff: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Controle de LED",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(text = "Controla o LED 13 do Arduino usando os comandos LED:ON e LED:OFF.")
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onTurnLedOn,
+                    modifier = Modifier.weight(1f),
+                    enabled = isConnected,
+                ) {
+                    Text(text = "Ligar LED")
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                OutlinedButton(
+                    onClick = onTurnLedOff,
+                    modifier = Modifier.weight(1f),
+                    enabled = isConnected,
+                ) {
+                    Text(text = "Desligar LED")
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun DevelopmentNotesCard(developmentNotes: List<String>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -333,8 +393,8 @@ private fun ConnectionScreenPreview() {
         ConnectionScreen(
             bluetoothState = BluetoothUiState(
                 status = BluetoothConnectionStatus.Connected,
-                message = "Comando enviado: PING. Resposta recebida.",
-                lastReceivedMessage = "OK:PONG",
+                message = "Comando enviado: LED:ON. Resposta recebida.",
+                lastReceivedMessage = "OK:LED_ON",
                 selectedDevice = BluetoothDeviceInfo(
                     name = "HC-06",
                     address = "20:16:05:11:38:71",
@@ -348,7 +408,7 @@ private fun ConnectionScreenPreview() {
             ),
             developmentNotes = listOf(
                 "Conexão RFCOMM/SPP validada com HC-06.",
-                "Leitura de resposta do Arduino em teste.",
+                "Controle real de LED em teste.",
             ),
             onRequestPermissions = {},
             onRefresh = {},
@@ -356,6 +416,8 @@ private fun ConnectionScreenPreview() {
             onSelectDevice = {},
             onConnectSelectedDevice = {},
             onSendPing = {},
+            onTurnLedOn = {},
+            onTurnLedOff = {},
             onBack = {},
         )
     }
