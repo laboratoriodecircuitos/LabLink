@@ -59,6 +59,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.com.laboratoriodecircuitos.lablink.core.boards.BoardPin
 import br.com.laboratoriodecircuitos.lablink.core.boards.BoardPinValidator
 import br.com.laboratoriodecircuitos.lablink.core.boards.BoardProfile
 import br.com.laboratoriodecircuitos.lablink.core.boards.BoardProfiles
@@ -108,17 +109,18 @@ fun CreateControlScreen(
         }
     }
 
-    fun updatePin(index: Int, value: String) {
+    fun selectPin(index: Int, value: String) {
         controlPins = controlPins.toMutableList().also {
-            it[index] = value.trim().uppercase().take(4)
+            it[index] = BoardPinValidator.normalizePin(value)
         }
     }
 
-    fun validatePinAt(index: Int): PinValidationResult {
-        val board = selectedBoard ?: BoardProfiles.defaultBoard
-        val type = selectedType ?: ControlType.DigitalToggle
+    fun clearPins() {
+        controlPins = List(8) { "" }
+    }
 
-        val usedPins = controlPins
+    fun usedPinsExcept(index: Int): Set<String> {
+        return controlPins
             .take(quantity)
             .mapIndexedNotNull { pinIndex, pin ->
                 if (pinIndex != index && pin.isNotBlank()) {
@@ -128,12 +130,28 @@ fun CreateControlScreen(
                 }
             }
             .toSet()
+    }
+
+    fun availablePinsAt(index: Int): List<BoardPin> {
+        val board = selectedBoard ?: BoardProfiles.defaultBoard
+        val type = selectedType ?: ControlType.DigitalToggle
+
+        return BoardPinValidator.availablePinsFor(
+            board = board,
+            controlType = type,
+            usedPins = usedPinsExcept(index),
+        )
+    }
+
+    fun validatePinAt(index: Int): PinValidationResult {
+        val board = selectedBoard ?: BoardProfiles.defaultBoard
+        val type = selectedType ?: ControlType.DigitalToggle
 
         return BoardPinValidator.validatePinForControl(
             board = board,
             controlType = type,
             pin = controlPins[index],
-            usedPins = usedPins,
+            usedPins = usedPinsExcept(index),
         )
     }
 
@@ -169,7 +187,10 @@ fun CreateControlScreen(
                                 BoardCard(
                                     board = board,
                                     selected = selectedBoard?.type == board.type,
-                                    onClick = { selectedBoard = board },
+                                    onClick = {
+                                        selectedBoard = board
+                                        clearPins()
+                                    },
                                 )
                             }
 
@@ -212,7 +233,7 @@ fun CreateControlScreen(
                                     selected = selectedType == type,
                                     onClick = {
                                         selectedType = type
-                                        controlPins = List(8) { "" }
+                                        clearPins()
                                     },
                                 )
                             }
@@ -267,17 +288,21 @@ fun CreateControlScreen(
                             QuantitySelector(
                                 quantity = quantity,
                                 onDecrease = {
-                                    if (quantity > 1) quantity--
+                                    if (quantity > 1) {
+                                        quantity--
+                                    }
                                 },
                                 onIncrease = {
-                                    if (quantity < 8) quantity++
+                                    if (quantity < 8) {
+                                        quantity++
+                                    }
                                 },
                             )
 
                             ContinueCard(
                                 enabled = true,
                                 title = "Continuar",
-                                description = "Agora vamos configurar nome e pino de cada controle.",
+                                description = "Agora vamos escolher os pinos de cada controle.",
                                 onClick = {
                                     currentStep = CreateControlStep.ConfigureControls
                                 },
@@ -293,8 +318,8 @@ fun CreateControlScreen(
                             val allPinsValid = validationResults.all { it == PinValidationResult.Valid }
 
                             HeaderSection(
-                                title = "Configure os controles",
-                                description = "Dê um nome opcional e informe o pino usado em cada controle.",
+                                title = "Escolha os pinos",
+                                description = "O LabLink mostra apenas os pinos compatíveis com a placa e o tipo de controle escolhido.",
                             )
 
                             SelectedBoardSummary(
@@ -316,21 +341,22 @@ fun CreateControlScreen(
                                 ControlConfigCard(
                                     index = index,
                                     name = controlNames[index],
-                                    pin = controlPins[index],
+                                    selectedPin = controlPins[index],
                                     type = type,
+                                    availablePins = availablePinsAt(index),
                                     validationResult = validationResults[index],
                                     onNameChange = { updateName(index, it) },
-                                    onPinChange = { updatePin(index, it) },
+                                    onSelectPin = { selectPin(index, it) },
                                 )
                             }
 
                             ContinueCard(
                                 enabled = allPinsValid,
-                                title = if (allPinsValid) "Salvar controles" else "Corrija os pinos",
+                                title = if (allPinsValid) "Salvar controles" else "Escolha todos os pinos",
                                 description = if (allPinsValid) {
-                                    "Todos os pinos são válidos para a placa e o tipo de controle escolhido."
+                                    "Todos os pinos escolhidos são válidos e não estão repetidos."
                                 } else {
-                                    "O LabLink bloqueia pinos repetidos, inexistentes ou incompatíveis com este controle."
+                                    "Selecione um pino disponível para cada controle."
                                 },
                                 onClick = {
                                     // Próxima etapa: salvar controles em memória/local.
@@ -787,11 +813,12 @@ private fun QuantityButton(
 private fun ControlConfigCard(
     index: Int,
     name: String,
-    pin: String,
+    selectedPin: String,
     type: ControlType?,
+    availablePins: List<BoardPin>,
     validationResult: PinValidationResult,
     onNameChange: (String) -> Unit,
-    onPinChange: (String) -> Unit,
+    onSelectPin: (String) -> Unit,
 ) {
     val defaultName = when (type) {
         ControlType.DigitalToggle -> "Liga / Desliga ${index + 1}"
@@ -803,8 +830,7 @@ private fun ControlConfigCard(
     }
 
     val isValid = validationResult == PinValidationResult.Valid
-    val hasValue = pin.isNotBlank()
-    val validationMessage = BoardPinValidator.validationMessage(validationResult)
+    val hasPin = selectedPin.isNotBlank()
 
     Column(
         modifier = Modifier
@@ -814,7 +840,7 @@ private fun ControlConfigCard(
                 width = 1.dp,
                 color = when {
                     isValid -> AccentGreen.copy(alpha = 0.45f)
-                    hasValue -> AccentDanger.copy(alpha = 0.55f)
+                    hasPin -> AccentDanger.copy(alpha = 0.55f)
                     else -> BorderSoft
                 },
                 shape = RoundedCornerShape(24.dp),
@@ -838,23 +864,108 @@ private fun ControlConfigCard(
             onValueChange = onNameChange,
         )
 
-        LabTextField(
-            label = "Pino",
-            value = pin,
-            placeholder = when (type) {
-                ControlType.AnalogRead -> "A0"
-                ControlType.PwmSlider -> "3"
-                else -> "13"
-            },
-            keyboardType = KeyboardType.Text,
-            monospace = true,
-            onValueChange = onPinChange,
-            supportingText = when {
-                validationMessage != null -> validationMessage
-                isValid -> "${BoardPinValidator.normalizePin(pin)} disponível para este controle."
-                else -> null
-            },
-            supportingColor = if (isValid) AccentGreen else AccentDanger,
+        PinSelector(
+            selectedPin = selectedPin,
+            availablePins = availablePins,
+            onSelectPin = onSelectPin,
+        )
+    }
+}
+
+@Composable
+private fun PinSelector(
+    selectedPin: String,
+    availablePins: List<BoardPin>,
+    onSelectPin: (String) -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = "Pino",
+            color = TextDim,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            fontWeight = FontWeight.Medium,
+        )
+
+        if (availablePins.isEmpty()) {
+            Text(
+                text = "Não há pinos disponíveis para este tipo de controle.",
+                color = AccentDanger,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+            )
+            return
+        }
+
+        availablePins.chunked(4).forEach { rowPins ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                rowPins.forEach { pin ->
+                    PinChip(
+                        pin = pin,
+                        selected = BoardPinValidator.normalizePin(selectedPin) == BoardPinValidator.normalizePin(pin.id),
+                        onClick = { onSelectPin(pin.id) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                repeat(4 - rowPins.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+
+        if (selectedPin.isBlank()) {
+            Text(
+                text = "Escolha um pino disponível.",
+                color = TextDim,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+            )
+        } else {
+            Text(
+                text = "${BoardPinValidator.normalizePin(selectedPin)} selecionado.",
+                color = AccentGreen,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PinChip(
+    pin: BoardPin,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .height(44.dp)
+            .background(
+                color = if (selected) AccentGreen else Color.White.copy(alpha = 0.05f),
+                shape = RoundedCornerShape(14.dp),
+            )
+            .border(
+                width = 1.dp,
+                color = if (selected) AccentGreen.copy(alpha = 0.75f) else BorderSoft,
+                shape = RoundedCornerShape(14.dp),
+            )
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = pin.label,
+            color = if (selected) Color.Black else WhiteSoft,
+            fontSize = 14.sp,
+            lineHeight = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = FontFamily.Monospace,
         )
     }
 }
@@ -867,8 +978,6 @@ private fun LabTextField(
     keyboardType: KeyboardType,
     onValueChange: (String) -> Unit,
     monospace: Boolean = false,
-    supportingText: String? = null,
-    supportingColor: Color = TextDim,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -894,7 +1003,7 @@ private fun LabTextField(
             ),
             cursorBrush = SolidColor(AccentGreen),
             keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Characters,
+                capitalization = KeyboardCapitalization.Sentences,
                 keyboardType = keyboardType,
             ),
             decorationBox = { innerTextField ->
@@ -921,15 +1030,6 @@ private fun LabTextField(
                 }
             },
         )
-
-        if (supportingText != null) {
-            Text(
-                text = supportingText,
-                color = supportingColor,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-            )
-        }
     }
 }
 
