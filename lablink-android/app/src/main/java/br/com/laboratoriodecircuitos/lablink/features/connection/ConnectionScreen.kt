@@ -35,6 +35,7 @@ fun ConnectionScreen(
     onRefresh: () -> Unit,
     onLoadPairedDevices: () -> Unit,
     onSelectDevice: (BluetoothDeviceInfo) -> Unit,
+    onConnectSelectedDevice: () -> Unit,
     onBack: () -> Unit,
 ) {
     Surface(
@@ -98,9 +99,11 @@ fun ConnectionScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = { },
+                onClick = onConnectSelectedDevice,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = bluetoothState.selectedDevice != null,
+                enabled = bluetoothState.selectedDevice != null &&
+                    bluetoothState.status != BluetoothConnectionStatus.Connecting &&
+                    bluetoothState.status != BluetoothConnectionStatus.Connected,
             ) {
                 Text(text = "Conectar ao dispositivo selecionado")
             }
@@ -305,6 +308,7 @@ private fun ConnectionScreenPreview() {
             onRefresh = {},
             onLoadPairedDevices = {},
             onSelectDevice = {},
+            onConnectSelectedDevice = {},
             onBack = {},
         )
     }

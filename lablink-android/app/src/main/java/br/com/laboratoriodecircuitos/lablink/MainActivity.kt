@@ -1,6 +1,8 @@
 ﻿package br.com.laboratoriodecircuitos.lablink
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -43,6 +45,7 @@ private enum class LabLinkScreen {
 private fun LabLinkApp() {
     val context = LocalContext.current
     val bluetoothService = remember { LabLinkBluetoothService() }
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
 
     var currentScreen by remember { mutableStateOf(LabLinkScreen.Home) }
     var bluetoothState by remember {
@@ -70,6 +73,22 @@ private fun LabLinkApp() {
         )
     }
 
+    fun connectSelectedDevice() {
+        val stateBeforeConnection = bluetoothService.connectingState(bluetoothState)
+        bluetoothState = stateBeforeConnection
+
+        Thread {
+            val resultState = bluetoothService.connectToSelectedDevice(
+                context = context.applicationContext,
+                currentState = stateBeforeConnection,
+            )
+
+            mainHandler.post {
+                bluetoothState = resultState
+            }
+        }.start()
+    }
+
     when (currentScreen) {
         LabLinkScreen.Home -> LabLinkHomeScreen(
             onOpenConnection = {
@@ -94,6 +113,9 @@ private fun LabLinkApp() {
             },
             onSelectDevice = { device ->
                 selectDevice(device)
+            },
+            onConnectSelectedDevice = {
+                connectSelectedDevice()
             },
             onBack = { currentScreen = LabLinkScreen.Home },
         )
