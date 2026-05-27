@@ -17,6 +17,8 @@ import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothConnectionS
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPermissionHelper
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothService
+import br.com.laboratoriodecircuitos.lablink.core.controls.ControlCommandMapper
+import br.com.laboratoriodecircuitos.lablink.core.controls.DefaultControls
 import br.com.laboratoriodecircuitos.lablink.features.connection.ConnectionScreen
 import br.com.laboratoriodecircuitos.lablink.features.controls.ControlsScreen
 import br.com.laboratoriodecircuitos.lablink.features.home.LabLinkHomeScreen
@@ -172,8 +174,22 @@ private fun LabLinkApp() {
         LabLinkScreen.Controls -> ControlsScreen(
             bluetoothState = bluetoothState,
             onSendPing = { sendCommand("PING") },
-            onTurnLedOn = { sendCommand("LED:ON") },
-            onTurnLedOff = { sendCommand("LED:OFF") },
+            onTurnLedOn = {
+                sendCommand(
+                    ControlCommandMapper.digitalToggleCommand(
+                        control = DefaultControls.pin13DigitalOutput,
+                        turnOn = true,
+                    )
+                )
+            },
+            onTurnLedOff = {
+                sendCommand(
+                    ControlCommandMapper.digitalToggleCommand(
+                        control = DefaultControls.pin13DigitalOutput,
+                        turnOn = false,
+                    )
+                )
+            },
             onOpenHome = { currentScreen = LabLinkScreen.Home },
             onOpenConnection = {
                 refreshBluetoothState()
@@ -184,6 +200,7 @@ private fun LabLinkApp() {
         )
     }
 }
+
 
 
 

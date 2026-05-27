@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothConnectionStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothUiState
+import br.com.laboratoriodecircuitos.lablink.core.controls.DefaultControls
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkDrawer
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkTopAppBar
 import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
@@ -79,6 +80,7 @@ fun ControlsScreen(
     var drawerOpen by remember { mutableStateOf(false) }
 
     val isConnected = bluetoothState.status == BluetoothConnectionStatus.Connected
+    val primaryControl = DefaultControls.pin13DigitalOutput
 
     var isOutputOn by remember {
         mutableStateOf(bluetoothState.lastReceivedMessage == "OK:LED_ON")
@@ -117,7 +119,7 @@ fun ControlsScreen(
                     DigitalOutputControlCard(
                         isOn = isOutputOn,
                         enabled = isConnected,
-                        pinLabel = "Pino 13",
+                        pinLabel = primaryControl.pinLabel,
                         onToggle = {
                             val newState = !isOutputOn
                             isOutputOn = newState
@@ -439,3 +441,4 @@ private fun ControlsScreenPreview() {
         )
     }
 }
+
