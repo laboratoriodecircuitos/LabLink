@@ -36,6 +36,7 @@ fun ConnectionScreen(
     onLoadPairedDevices: () -> Unit,
     onSelectDevice: (BluetoothDeviceInfo) -> Unit,
     onConnectSelectedDevice: () -> Unit,
+    onSendPing: () -> Unit,
     onBack: () -> Unit,
 ) {
     Surface(
@@ -106,6 +107,16 @@ fun ConnectionScreen(
                     bluetoothState.status != BluetoothConnectionStatus.Connected,
             ) {
                 Text(text = "Conectar ao dispositivo selecionado")
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = onSendPing,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = bluetoothState.status == BluetoothConnectionStatus.Connected,
+            ) {
+                Text(text = "Enviar PING")
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -287,28 +298,29 @@ private fun ConnectionScreenPreview() {
     LabLinkTheme {
         ConnectionScreen(
             bluetoothState = BluetoothUiState(
-                status = BluetoothConnectionStatus.Ready,
-                message = "Dispositivo selecionado: HC-05. Próxima etapa: conectar ao módulo Bluetooth.",
+                status = BluetoothConnectionStatus.Connected,
+                message = "Conectado a HC-06. Comunicação serial pronta.",
                 selectedDevice = BluetoothDeviceInfo(
-                    name = "HC-05",
-                    address = "00:11:22:33:44:55",
+                    name = "HC-06",
+                    address = "20:16:05:11:38:71",
                 ),
                 pairedDevices = listOf(
                     BluetoothDeviceInfo(
-                        name = "HC-05",
-                        address = "00:11:22:33:44:55",
+                        name = "HC-06",
+                        address = "20:16:05:11:38:71",
                     ),
                 ),
             ),
             developmentNotes = listOf(
-                "Permissões Bluetooth adicionadas ao AndroidManifest.xml.",
-                "Seleção de dispositivo pareado preparada.",
+                "Conexão RFCOMM/SPP validada com HC-06.",
+                "Envio inicial de comando serial em teste.",
             ),
             onRequestPermissions = {},
             onRefresh = {},
             onLoadPairedDevices = {},
             onSelectDevice = {},
             onConnectSelectedDevice = {},
+            onSendPing = {},
             onBack = {},
         )
     }

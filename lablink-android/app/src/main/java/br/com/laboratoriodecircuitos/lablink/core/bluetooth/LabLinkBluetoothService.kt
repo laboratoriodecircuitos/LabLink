@@ -202,7 +202,7 @@ class LabLinkBluetoothService {
             return currentState.copy(
                 status = BluetoothConnectionStatus.Connected,
                 selectedDevice = selectedDevice,
-                message = "Conectado a ${selectedDevice.name} por RFCOMM seguro. Comunicação serial pronta para próxima etapa.",
+                message = "Conectado a ${selectedDevice.name} por RFCOMM seguro. Comunicação serial pronta.",
             )
         }
 
@@ -215,7 +215,7 @@ class LabLinkBluetoothService {
             return currentState.copy(
                 status = BluetoothConnectionStatus.Connected,
                 selectedDevice = selectedDevice,
-                message = "Conectado a ${selectedDevice.name} por RFCOMM insecure. Comunicação serial pronta para próxima etapa.",
+                message = "Conectado a ${selectedDevice.name} por RFCOMM insecure. Comunicação serial pronta.",
             )
         }
 
@@ -248,6 +248,43 @@ class LabLinkBluetoothService {
         }
     }
 
+    fun sendCommand(
+        currentState: BluetoothUiState,
+        command: String,
+    ): BluetoothUiState {
+        if (currentState.status != BluetoothConnectionStatus.Connected) {
+            return currentState.copy(
+                message = "Conecte a um dispositivo antes de enviar comandos.",
+            )
+        }
+
+        val socket = bluetoothSocket
+
+        if (socket == null || !socket.isConnected) {
+            return currentState.copy(
+                status = BluetoothConnectionStatus.Error,
+                message = "Socket Bluetooth não está conectado.",
+            )
+        }
+
+        return try {
+            val commandWithLineBreak = if (command.endsWith("\n")) command else "$command\n"
+            socket.outputStream.write(commandWithLineBreak.toByteArray(Charsets.UTF_8))
+            socket.outputStream.flush()
+
+            currentState.copy(
+                message = "Comando enviado: $command",
+            )
+        } catch (exception: IOException) {
+            closeConnection()
+
+            currentState.copy(
+                status = BluetoothConnectionStatus.Error,
+                message = "Falha ao enviar comando: ${exception.message ?: "erro sem detalhe"}.",
+            )
+        }
+    }
+
     fun closeConnection() {
         try {
             bluetoothSocket?.close()
@@ -261,11 +298,9 @@ class LabLinkBluetoothService {
     fun getDevelopmentNotes(): List<String> {
         return listOf(
             "Permissões Bluetooth adicionadas ao AndroidManifest.xml.",
-            "Solicitação de permissões em runtime validada.",
-            "Listagem de dispositivos pareados validada.",
-            "Seleção de dispositivo pareado validada.",
-            "Conexão RFCOMM/SPP em teste com fallback secure/insecure.",
-            "Envio de comandos para Arduino ainda não implementado.",
+            "Conexão RFCOMM/SPP validada com HC-06.",
+            "Envio inicial de comando serial em teste.",
+            "Leitura de resposta do Arduino ainda não implementada no app.",
         )
     }
 }

@@ -89,6 +89,13 @@ private fun LabLinkApp() {
         }.start()
     }
 
+    fun sendPing() {
+        bluetoothState = bluetoothService.sendCommand(
+            currentState = bluetoothState,
+            command = "PING",
+        )
+    }
+
     when (currentScreen) {
         LabLinkScreen.Home -> LabLinkHomeScreen(
             onOpenConnection = {
@@ -116,6 +123,9 @@ private fun LabLinkApp() {
             },
             onConnectSelectedDevice = {
                 connectSelectedDevice()
+            },
+            onSendPing = {
+                sendPing()
             },
             onBack = { currentScreen = LabLinkScreen.Home },
         )
