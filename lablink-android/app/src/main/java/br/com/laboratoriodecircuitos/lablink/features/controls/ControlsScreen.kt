@@ -81,6 +81,7 @@ fun ControlsScreen(
     onSendPing: () -> Unit,
     onToggleDigitalControl: (LabLinkControl, Boolean) -> Unit = { _, _ -> },
     onSendPwmControl: (LabLinkControl, Int) -> Unit = { _, _ -> },
+    onSendPulseControl: (LabLinkControl) -> Unit = {},
     onTurnLedOn: () -> Unit,
     onTurnLedOff: () -> Unit,
     onOpenHome: () -> Unit,
@@ -213,8 +214,17 @@ fun ControlsScreen(
                                     )
                                 }
 
+                                ControlType.PulseButton -> {
+                                    PulseControlCard(
+                                        control = control,
+                                        enabled = isConnected,
+                                        onPulse = {
+                                            onSendPulseControl(control)
+                                        },
+                                    )
+                                }
+
                                 ControlType.ServoSlider,
-                                ControlType.PulseButton,
                                 ControlType.AnalogRead -> {
                                     FutureConfiguredControlCard(control = control)
                                 }
@@ -570,6 +580,105 @@ private fun PwmSliderControlCard(
 }
 
 @Composable
+private fun PulseControlCard(
+    control: LabLinkControl,
+    enabled: Boolean,
+    onPulse: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.52f)
+            .background(CardDark, RoundedCornerShape(30.dp))
+            .border(
+                width = 1.dp,
+                color = BorderSoft,
+                shape = RoundedCornerShape(30.dp),
+            )
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .background(AccentYellow.copy(alpha = 0.16f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Bolt,
+                    contentDescription = null,
+                    tint = AccentYellow,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = control.name,
+                    color = WhiteSoft,
+                    fontSize = 18.sp,
+                    lineHeight = 23.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+
+                Spacer(modifier = Modifier.height(5.dp))
+
+                Text(
+                    text = "${control.pinLabel} • Pulso de 500 ms",
+                    color = TextDim,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(68.dp)
+                .background(
+                    color = if (enabled) AccentYellow else Color.White.copy(alpha = 0.06f),
+                    shape = RoundedCornerShape(22.dp),
+                )
+                .border(
+                    width = 1.dp,
+                    color = if (enabled) AccentYellow.copy(alpha = 0.65f) else BorderSoft,
+                    shape = RoundedCornerShape(22.dp),
+                )
+                .clickable(enabled = enabled) { onPulse() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "Enviar pulso",
+                color = if (enabled) Color.Black else TextDim,
+                fontSize = 18.sp,
+                lineHeight = 24.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+
+        Text(
+            text = if (enabled) {
+                "Ao tocar, o pino liga por 500 ms e desliga automaticamente."
+            } else {
+                "Conecte o Bluetooth para enviar o pulso."
+            },
+            color = TextDim,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+        )
+    }
+}
+
+@Composable
 private fun FutureConfiguredControlCard(control: LabLinkControl) {
     Row(
         modifier = Modifier
@@ -829,6 +938,7 @@ private fun ControlsScreenPreview() {
             onSendPing = {},
             onToggleDigitalControl = { _, _ -> },
             onSendPwmControl = { _, _ -> },
+            onSendPulseControl = {},
             onTurnLedOn = {},
             onTurnLedOff = {},
             onOpenHome = {},
@@ -840,6 +950,7 @@ private fun ControlsScreenPreview() {
         )
     }
 }
+
 
 
 

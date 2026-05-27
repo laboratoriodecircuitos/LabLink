@@ -224,6 +224,14 @@ private fun LabLinkApp() {
                     )
                 )
             },
+            onSendPulseControl = { control ->
+                sendCommand(
+                    ControlCommandMapper.pulseCommand(
+                        control = control,
+                        durationMs = 500,
+                    )
+                )
+            },
             onTurnLedOn = {
                 sendCommand(
                     ControlCommandMapper.digitalToggleCommand(
@@ -265,6 +273,7 @@ private fun LabLinkApp() {
     }
 }
 }
+
 
 
 
