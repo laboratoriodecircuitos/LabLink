@@ -130,15 +130,7 @@ private fun LabLinkApp() {
             onConnectSelectedDevice = {
                 connectSelectedDevice()
             },
-            onSendPing = {
-                sendCommand("PING")
-            },
-            onTurnLedOn = {
-                sendCommand("LED:ON")
-            },
-            onTurnLedOff = {
-                sendCommand("LED:OFF")
-            },
+            onOpenControls = { currentScreen = LabLinkScreen.Controls },
             onBack = { currentScreen = LabLinkScreen.Home },
         )
 
@@ -147,6 +139,11 @@ private fun LabLinkApp() {
         )
 
         LabLinkScreen.Controls -> ControlsScreen(
+            bluetoothState = bluetoothState,
+            onSendPing = { sendCommand("PING") },
+            onTurnLedOn = { sendCommand("LED:ON") },
+            onTurnLedOff = { sendCommand("LED:OFF") },
+            onOpenConnection = { currentScreen = LabLinkScreen.Connection },
             onBack = { currentScreen = LabLinkScreen.Home },
         )
     }
