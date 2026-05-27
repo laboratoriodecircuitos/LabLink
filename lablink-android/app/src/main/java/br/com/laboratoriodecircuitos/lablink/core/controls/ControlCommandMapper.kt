@@ -4,63 +4,72 @@ object ControlCommandMapper {
     fun digitalToggleCommand(
         control: LabLinkControl,
         turnOn: Boolean,
-        useLegacyLedCommandForPin13: Boolean = true,
     ): String {
-        require(control.type == ControlType.DigitalToggle) {
-            "digitalToggleCommand só aceita controles do tipo DigitalToggle."
+        val normalizedPin = normalizeDigitalPin(control.pin)
+        val state = if (turnOn) "ON" else "OFF"
+
+        return if (normalizedPin == "D13") {
+            if (turnOn) "LED:ON" else "LED:OFF"
+        } else {
+            "DIGITAL:$normalizedPin:$state"
         }
-
-        val normalizedPin = control.pin.trim()
-
-        if (useLegacyLedCommandForPin13 && normalizedPin == "13") {
-            return if (turnOn) "LED:ON" else "LED:OFF"
-        }
-
-        return "DIGITAL:$normalizedPin:${if (turnOn) "ON" else "OFF"}"
     }
 
     fun pwmCommand(
         control: LabLinkControl,
         value: Int,
     ): String {
-        require(control.type == ControlType.PwmSlider) {
-            "pwmCommand só aceita controles do tipo PwmSlider."
-        }
+        val normalizedPin = normalizeDigitalPin(control.pin)
+        val safeValue = value.coerceIn(0, 255)
 
-        val normalizedPin = control.pin.trim()
-        return "PWM:$normalizedPin:$value"
+        return "PWM:$normalizedPin:$safeValue"
     }
 
     fun servoCommand(
         control: LabLinkControl,
         angle: Int,
     ): String {
-        require(control.type == ControlType.ServoSlider) {
-            "servoCommand só aceita controles do tipo ServoSlider."
-        }
+        val normalizedPin = normalizeDigitalPin(control.pin)
+        val safeAngle = angle.coerceIn(0, 180)
 
-        val normalizedPin = control.pin.trim()
-        return "SERVO:$normalizedPin:$angle"
+        return "SERVO:$normalizedPin:$safeAngle"
     }
 
     fun pulseCommand(
         control: LabLinkControl,
-        durationMs: Int,
+        durationMs: Int = 500,
     ): String {
-        require(control.type == ControlType.PulseButton) {
-            "pulseCommand só aceita controles do tipo PulseButton."
-        }
+        val normalizedPin = normalizeDigitalPin(control.pin)
+        val safeDuration = durationMs.coerceIn(1, 5000)
 
-        val normalizedPin = control.pin.trim()
-        return "PULSE:$normalizedPin:$durationMs"
+        return "PULSE:$normalizedPin:$safeDuration"
     }
 
     fun analogReadCommand(control: LabLinkControl): String {
-        require(control.type == ControlType.AnalogRead) {
-            "analogReadCommand só aceita controles do tipo AnalogRead."
-        }
+        val normalizedPin = normalizeAnalogPin(control.pin)
 
-        val normalizedPin = control.pin.trim().uppercase()
         return "READ:$normalizedPin"
+    }
+
+    private fun normalizeDigitalPin(pin: String): String {
+        val cleaned = pin.trim().uppercase()
+
+        return when {
+            cleaned.isBlank() -> "D13"
+            cleaned.startsWith("D") -> cleaned
+            cleaned.startsWith("A") -> cleaned
+            cleaned.all { it.isDigit() } -> "D$cleaned"
+            else -> cleaned
+        }
+    }
+
+    private fun normalizeAnalogPin(pin: String): String {
+        val cleaned = pin.trim().uppercase()
+
+        return when {
+            cleaned.isBlank() -> "A0"
+            cleaned.startsWith("A") -> cleaned
+            else -> cleaned
+        }
     }
 }

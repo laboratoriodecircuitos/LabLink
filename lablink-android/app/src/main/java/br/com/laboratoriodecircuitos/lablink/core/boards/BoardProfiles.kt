@@ -3,10 +3,8 @@
 object BoardProfiles {
     val arduinoUnoNano = BoardProfile(
         type = BoardType.ArduinoUnoNano,
-        description = "Perfil inicial para Arduino Uno e Arduino Nano, com pinos digitais, PWM e entradas analógicas mais comuns.",
+        description = "Perfil inicial para Arduino Uno e Arduino Nano. Neste firmware, D2 e D3 ficam reservados para o HC-06 via SoftwareSerial.",
         pins = buildList {
-            addDigitalPin(id = "D2")
-            addDigitalPin(id = "D3", supportsPwm = true)
             addDigitalPin(id = "D4")
             addDigitalPin(id = "D5", supportsPwm = true)
             addDigitalPin(id = "D6", supportsPwm = true)
@@ -75,3 +73,5 @@ object BoardProfiles {
         )
     }
 }
+
+
