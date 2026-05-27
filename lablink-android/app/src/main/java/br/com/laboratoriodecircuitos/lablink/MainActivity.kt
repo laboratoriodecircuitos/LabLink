@@ -240,8 +240,26 @@ private fun LabLinkApp() {
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
             onOpenControls = { currentScreen = LabLinkScreen.Controls },
             onCreateControl = { currentScreen = LabLinkScreen.CreateControl },
+            onClearControls = {
+                val defaultControls = listOf(
+                    DefaultControls.pin13DigitalOutput.copy(
+                        isOn = false,
+                    )
+                )
+
+                configuredControls = defaultControls.toList()
+                ControlStorage.saveControls(context, defaultControls)
+                controlsRefreshKey++
+
+                currentScreen = LabLinkScreen.Controls
+            },
         )
     }
 }
 }
+
+
+
+
+
 

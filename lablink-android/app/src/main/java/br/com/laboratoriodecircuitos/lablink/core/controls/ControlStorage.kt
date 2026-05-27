@@ -69,7 +69,7 @@ object ControlStorage {
 
         prefs.edit()
             .putString(KEY_CONTROLS, array.toString())
-            .apply()
+            .commit()
     }
 
     private fun JSONObject.optNullableInt(key: String): Int? {
@@ -80,3 +80,4 @@ object ControlStorage {
         }
     }
 }
+
