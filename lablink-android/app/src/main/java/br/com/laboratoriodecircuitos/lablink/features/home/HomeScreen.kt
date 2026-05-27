@@ -14,27 +14,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bluetooth
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.HelpOutline
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Menu
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Terminal
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -53,17 +44,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
-import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkTopAppBar
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkDrawer
+import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkTopAppBar
+import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
 
 private val BgDeep = Color(0xFF000000)
-private val DrawerBg = Color(0xFF202126)
 private val CardDark = Color(0xFF151515)
 private val AccentYellow = Color(0xFFFFE382)
 private val AccentPurple = Color(0xFFE5BEFF)
 private val AccentGreen = Color(0xFFC4FA8C)
-private val AccentBlue = Color(0xFF4CD6FB)
 private val TextDim = Color(0xFF8A8A8A)
 private val WhiteSoft = Color(0xFFFFFFFF)
 private val BorderSoft = Color.White.copy(alpha = 0.06f)
@@ -71,14 +60,14 @@ private val BorderSoft = Color.White.copy(alpha = 0.06f)
 @Composable
 fun LabLinkHomeScreen(
     isBluetoothConnected: Boolean,
+    connectedDeviceName: String?,
     onOpenHome: () -> Unit,
     onOpenConnection: () -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenControls: () -> Unit,
 ) {
-    var drawerOpen by remember { mutableStateOf(false) }
-
     val scrollState = rememberScrollState()
+    var drawerOpen by remember { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -93,57 +82,50 @@ fun LabLinkHomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .padding(top = 112.dp, bottom = 96.dp),
+                    .padding(top = 112.dp, bottom = 40.dp),
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
                     GreetingSection()
 
                     HomeActionCard(
-                        title = "Conectar dispositivo",
-                        subtitle = "Buscar módulos HC-05 ou HC-06 pareados e abrir a comunicação.",
-                        icon = Icons.Rounded.Bluetooth,
-                        backgroundColor = AccentPurple,
+                        title = if (isBluetoothConnected) "Dispositivo conectado" else "Conectar dispositivo",
+                        subtitle = if (isBluetoothConnected) {
+                            connectedDeviceName ?: "Módulo Bluetooth conectado"
+                        } else {
+                            "Buscar e conectar o módulo Bluetooth do seu projeto."
+                        },
+                        icon = if (isBluetoothConnected) Icons.Rounded.Check else Icons.Rounded.Bluetooth,
+                        backgroundColor = if (isBluetoothConnected) AccentGreen else AccentPurple,
                         contentColor = Color.Black,
                         onClick = onOpenConnection,
                     )
 
                     HomeActionCard(
-                        title = "Início rápido",
-                        subtitle = "Conecte, envie PING e teste o LED do Arduino em poucos passos.",
+                        title = "Meu controle",
+                        subtitle = "Controlar a saída configurada no Arduino.",
                         icon = Icons.Rounded.Tune,
                         backgroundColor = AccentYellow,
                         contentColor = Color.Black,
                         onClick = onOpenControls,
                     )
 
-                    HomeActionCard(
-                        title = "Explorar exemplos",
-                        subtitle = "Veja ideias como PING/PONG, LED ON/OFF, PWM, servo e motores.",
-                        icon = Icons.Rounded.Terminal,
-                        backgroundColor = CardDark,
-                        contentColor = WhiteSoft,
-                        border = true,
-                        onClick = onOpenTerminal,
-                    )
-
-                    HomeActionCard(
-                        title = "Criar novo controle",
-                        subtitle = "Em breve, monte interfaces próprias para controlar seus projetos.",
-                        icon = Icons.Rounded.Add,
-                        backgroundColor = AccentGreen,
-                        contentColor = Color.Black,
-                        faded = true,
-                        onClick = onOpenControls,
+                    SmallHintCard(
+                        text = if (isBluetoothConnected) {
+                            "Tudo pronto para controlar seu projeto."
+                        } else {
+                            "Primeiro conecte o dispositivo. Depois acesse seu controle."
+                        },
                     )
                 }
             }
 
             LabLinkTopAppBar(
+                title = "LabLink",
                 isBluetoothConnected = isBluetoothConnected,
                 onOpenDrawer = { drawerOpen = true },
             )
@@ -188,7 +170,7 @@ private fun GreetingSection() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp, bottom = 6.dp),
+            .padding(top = 4.dp, bottom = 4.dp),
     ) {
         Text(
             text = "Oi Rafael,",
@@ -206,7 +188,6 @@ private fun GreetingSection() {
             color = WhiteSoft.copy(alpha = 0.78f),
             fontSize = 16.sp,
             lineHeight = 24.sp,
-            fontWeight = FontWeight.Normal,
         )
     }
 }
@@ -219,53 +200,69 @@ private fun HomeActionCard(
     backgroundColor: Color,
     contentColor: Color,
     onClick: () -> Unit,
-    border: Boolean = false,
-    faded: Boolean = false,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(172.dp)
-            .alpha(if (faded) 0.82f else 1f)
-            .background(backgroundColor, RoundedCornerShape(24.dp))
-            .then(
-                if (border) {
-                    Modifier.border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
-                } else {
-                    Modifier
-                }
-            )
+            .height(178.dp)
+            .background(backgroundColor, RoundedCornerShape(28.dp))
             .clickable { onClick() }
             .padding(24.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = contentColor.copy(alpha = 0.88f),
-            modifier = Modifier.size(34.dp),
-        )
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(contentColor.copy(alpha = 0.10f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(24.dp),
+            )
+        }
 
         Column {
             Text(
                 text = title,
                 color = contentColor,
-                fontSize = 26.sp,
-                lineHeight = 31.sp,
+                fontSize = 28.sp,
+                lineHeight = 33.sp,
                 fontWeight = FontWeight.SemiBold,
-                letterSpacing = (-0.35).sp,
+                letterSpacing = (-0.45).sp,
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = subtitle,
-                color = contentColor.copy(alpha = if (contentColor == Color.Black) 0.70f else 0.78f),
+                color = contentColor.copy(alpha = 0.70f),
                 fontSize = 16.sp,
                 lineHeight = 22.sp,
-                fontWeight = FontWeight.Normal,
             )
         }
+    }
+}
+
+@Composable
+private fun SmallHintCard(text: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(0.72f)
+            .background(CardDark, RoundedCornerShape(20.dp))
+            .border(1.dp, BorderSoft, RoundedCornerShape(20.dp))
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = text,
+            color = TextDim,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+        )
     }
 }
 
@@ -275,6 +272,7 @@ private fun LabLinkHomeScreenPreview() {
     LabLinkTheme {
         LabLinkHomeScreen(
             isBluetoothConnected = true,
+            connectedDeviceName = "HC-06",
             onOpenHome = {},
             onOpenConnection = {},
             onOpenTerminal = {},
@@ -282,7 +280,3 @@ private fun LabLinkHomeScreenPreview() {
         )
     }
 }
-
-
-
-

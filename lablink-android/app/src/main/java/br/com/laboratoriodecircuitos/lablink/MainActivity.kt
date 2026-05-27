@@ -117,6 +117,7 @@ private fun LabLinkApp() {
     when (currentScreen) {
         LabLinkScreen.Home -> LabLinkHomeScreen(
             isBluetoothConnected = isBluetoothConnectedForUi,
+            connectedDeviceName = bluetoothState.selectedDevice?.name,
             onOpenHome = { currentScreen = LabLinkScreen.Home },
             onOpenConnection = {
                 refreshBluetoothState()
@@ -183,5 +184,6 @@ private fun LabLinkApp() {
         )
     }
 }
+
 
 
