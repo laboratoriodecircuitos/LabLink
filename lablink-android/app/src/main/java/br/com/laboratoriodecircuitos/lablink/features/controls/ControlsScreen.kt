@@ -104,6 +104,8 @@ fun ControlsScreen(
         displayedControls.size != 1
     val digitalStates = remember { mutableStateMapOf<String, Boolean>() }
     val pwmStates = remember { mutableStateMapOf<String, Int>() }
+    val pwmLastSentAt = remember { mutableStateMapOf<String, Long>() }
+    val pwmLastSentValues = remember { mutableStateMapOf<String, Int>() }
 
     LaunchedEffect(controlsRefreshKey, controls) {
         displayedControls.clear()
@@ -111,6 +113,8 @@ fun ControlsScreen(
 
         digitalStates.clear()
         pwmStates.clear()
+        pwmLastSentAt.clear()
+        pwmLastSentValues.clear()
 
         displayedControls.forEach { control ->
             when (control.type) {
@@ -185,7 +189,26 @@ fun ControlsScreen(
                                         enabled = isConnected,
                                         onValueChange = { newValue ->
                                             pwmStates[control.id] = newValue
-                                            onSendPwmControl(control, newValue)
+
+                                            val now = System.currentTimeMillis()
+                                            val lastSentAt = pwmLastSentAt[control.id] ?: 0L
+                                            val shouldSendNow = now - lastSentAt >= 45L
+
+                                            if (shouldSendNow) {
+                                                pwmLastSentAt[control.id] = now
+                                                pwmLastSentValues[control.id] = newValue
+                                                onSendPwmControl(control, newValue)
+                                            }
+                                        },
+                                        onValueChangeFinished = {
+                                            val finalValue = pwmStates[control.id] ?: control.currentValue ?: 0
+                                            val lastSentValue = pwmLastSentValues[control.id]
+
+                                            if (lastSentValue != finalValue) {
+                                                pwmLastSentAt[control.id] = System.currentTimeMillis()
+                                                pwmLastSentValues[control.id] = finalValue
+                                                onSendPwmControl(control, finalValue)
+                                            }
                                         },
                                     )
                                 }
@@ -426,6 +449,7 @@ private fun PwmSliderControlCard(
     value: Int,
     enabled: Boolean,
     onValueChange: (Int) -> Unit,
+    onValueChangeFinished: () -> Unit,
 ) {
     val safeValue = value.coerceIn(0, 255)
     val percentage = ((safeValue / 255f) * 100).toInt()
@@ -513,6 +537,11 @@ private fun PwmSliderControlCard(
             onValueChange = { newValue ->
                 if (enabled) {
                     onValueChange(newValue.toInt().coerceIn(0, 255))
+                }
+            },
+            onValueChangeFinished = {
+                if (enabled) {
+                    onValueChangeFinished()
                 }
             },
             enabled = enabled,
@@ -811,6 +840,7 @@ private fun ControlsScreenPreview() {
         )
     }
 }
+
 
 
 
