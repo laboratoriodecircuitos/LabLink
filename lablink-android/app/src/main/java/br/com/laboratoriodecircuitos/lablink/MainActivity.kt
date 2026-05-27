@@ -18,6 +18,7 @@ import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPermissionHelper
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothService
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlCommandMapper
+import br.com.laboratoriodecircuitos.lablink.core.controls.ControlStorage
 import br.com.laboratoriodecircuitos.lablink.core.controls.DefaultControls
 import br.com.laboratoriodecircuitos.lablink.core.controls.LabLinkControl
 import br.com.laboratoriodecircuitos.lablink.features.connection.ConnectionScreen
@@ -59,7 +60,7 @@ private fun LabLinkApp() {
     }
 
     var configuredControls by remember {
-        mutableStateOf<List<LabLinkControl>>(listOf(DefaultControls.pin13DigitalOutput))
+        mutableStateOf(ControlStorage.loadControls(context))
     }
 
     val isBluetoothConnectedForUi =
@@ -189,6 +190,7 @@ private fun LabLinkApp() {
             onOpenControls = { currentScreen = LabLinkScreen.Controls },
             onSaveControls = { controls ->
                 configuredControls = controls
+                ControlStorage.saveControls(context, controls)
                 currentScreen = LabLinkScreen.Controls
             },
         )
@@ -232,6 +234,7 @@ private fun LabLinkApp() {
         )
     }
 }
+
 
 
 
