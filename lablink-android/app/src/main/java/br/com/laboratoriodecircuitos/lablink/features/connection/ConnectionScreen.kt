@@ -1,5 +1,12 @@
 ﻿package br.com.laboratoriodecircuitos.lablink.features.connection
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,6 +46,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -53,6 +64,8 @@ import androidx.compose.ui.unit.sp
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothConnectionStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothUiState
+import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkDrawer
+import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkTopAppBar
 import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
 
 private val BgDeep = Color(0xFF000000)
@@ -75,10 +88,15 @@ fun ConnectionScreen(
     onLoadPairedDevices: () -> Unit,
     onSelectDevice: (BluetoothDeviceInfo) -> Unit,
     onConnectSelectedDevice: () -> Unit,
+    onOpenHome: () -> Unit = {},
+    onOpenConnection: () -> Unit = {},
+    onOpenTerminal: () -> Unit = {},
     onOpenControls: () -> Unit,
     onBack: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    var drawerOpen by remember { mutableStateOf(false) }
+
     val isConnected = bluetoothState.status == BluetoothConnectionStatus.Connected
     val selectedDevice = bluetoothState.selectedDevice
 
@@ -95,7 +113,7 @@ fun ConnectionScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .padding(top = 96.dp, bottom = 96.dp),
+                    .padding(top = 112.dp, bottom = 32.dp),
             ) {
                 Column(
                     modifier = Modifier
@@ -128,15 +146,43 @@ fun ConnectionScreen(
                     TechnicalNotesCard(developmentNotes = developmentNotes)
                 }
             }
-
-            TopAppBar(isConnected = isConnected)
-
-            BottomNavBar(
-                modifier = Modifier.align(Alignment.BottomCenter),
-                onHome = onBack,
-                onBluetooth = onRefresh,
-                onMore = {},
+            LabLinkTopAppBar(
+                title = "Bluetooth",
+                isBluetoothConnected = isConnected,
+                onOpenDrawer = { drawerOpen = true },
             )
+
+            AnimatedVisibility(
+                visible = drawerOpen,
+                enter = fadeIn(animationSpec = tween(180)) + slideInHorizontally(
+                    animationSpec = tween(260),
+                    initialOffsetX = { -it },
+                ),
+                exit = fadeOut(animationSpec = tween(160)) + slideOutHorizontally(
+                    animationSpec = tween(220),
+                    targetOffsetX = { -it },
+                ),
+            ) {
+                LabLinkDrawer(
+                    onClose = { drawerOpen = false },
+                    onOpenHome = {
+                        drawerOpen = false
+                        onOpenHome()
+                    },
+                    onOpenBluetooth = {
+                        drawerOpen = false
+                        onOpenConnection()
+                    },
+                    onOpenControls = {
+                        drawerOpen = false
+                        onOpenControls()
+                    },
+                    onOpenTerminal = {
+                        drawerOpen = false
+                        onOpenTerminal()
+                    },
+                )
+            }
         }
     }
 }
@@ -902,10 +948,15 @@ private fun ConnectionScreenPreview() {
             onLoadPairedDevices = {},
             onSelectDevice = {},
             onConnectSelectedDevice = {},
+            onOpenHome = {},
+            onOpenConnection = {},
+            onOpenTerminal = {},
             onOpenControls = {},
             onBack = {},
         )
     }
 }
+
+
 
 

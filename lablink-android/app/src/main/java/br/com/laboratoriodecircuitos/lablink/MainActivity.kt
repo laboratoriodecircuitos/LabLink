@@ -140,6 +140,12 @@ private fun LabLinkApp() {
             onConnectSelectedDevice = {
                 connectSelectedDevice()
             },
+            onOpenHome = { currentScreen = LabLinkScreen.Home },
+            onOpenConnection = {
+                refreshBluetoothState()
+                currentScreen = LabLinkScreen.Connection
+            },
+            onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
             onOpenControls = { currentScreen = LabLinkScreen.Controls },
             onBack = { currentScreen = LabLinkScreen.Home },
         )
@@ -170,3 +176,4 @@ private fun LabLinkApp() {
         )
     }
 }
+
