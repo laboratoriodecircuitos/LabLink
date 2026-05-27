@@ -248,7 +248,7 @@ class LabLinkBluetoothService {
         }
     }
 
-    fun sendCommand(
+    fun sendCommandAndReadResponse(
         currentState: BluetoothUiState,
         command: String,
     ): BluetoothUiState {
@@ -272,17 +272,52 @@ class LabLinkBluetoothService {
             socket.outputStream.write(commandWithLineBreak.toByteArray(Charsets.UTF_8))
             socket.outputStream.flush()
 
-            currentState.copy(
-                message = "Comando enviado: $command",
-            )
+            val response = readLineFromSocket(socket)
+
+            if (response.isBlank()) {
+                currentState.copy(
+                    message = "Comando enviado: $command. Nenhuma resposta recebida no tempo esperado.",
+                    lastReceivedMessage = "",
+                )
+            } else {
+                currentState.copy(
+                    message = "Comando enviado: $command. Resposta recebida.",
+                    lastReceivedMessage = response,
+                )
+            }
         } catch (exception: IOException) {
             closeConnection()
 
             currentState.copy(
                 status = BluetoothConnectionStatus.Error,
-                message = "Falha ao enviar comando: ${exception.message ?: "erro sem detalhe"}.",
+                message = "Falha ao enviar ou ler resposta: ${exception.message ?: "erro sem detalhe"}.",
             )
         }
+    }
+
+    private fun readLineFromSocket(
+        socket: BluetoothSocket,
+        timeoutMs: Long = 1500L,
+    ): String {
+        val inputStream = socket.inputStream
+        val startTime = System.currentTimeMillis()
+        val responseBuilder = StringBuilder()
+
+        while (System.currentTimeMillis() - startTime < timeoutMs) {
+            while (inputStream.available() > 0) {
+                val receivedChar = inputStream.read().toChar()
+
+                if (receivedChar == '\n') {
+                    return responseBuilder.toString().trim()
+                }
+
+                responseBuilder.append(receivedChar)
+            }
+
+            Thread.sleep(10)
+        }
+
+        return responseBuilder.toString().trim()
     }
 
     fun closeConnection() {
@@ -299,8 +334,8 @@ class LabLinkBluetoothService {
         return listOf(
             "Permissões Bluetooth adicionadas ao AndroidManifest.xml.",
             "Conexão RFCOMM/SPP validada com HC-06.",
-            "Envio inicial de comando serial em teste.",
-            "Leitura de resposta do Arduino ainda não implementada no app.",
+            "Envio de comando serial validado.",
+            "Leitura de resposta do Arduino em teste.",
         )
     }
 }

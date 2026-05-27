@@ -5,4 +5,5 @@ data class BluetoothUiState(
     val selectedDevice: BluetoothDeviceInfo? = null,
     val pairedDevices: List<BluetoothDeviceInfo> = emptyList(),
     val message: String = "Nenhum dispositivo conectado.",
+    val lastReceivedMessage: String = "",
 )

@@ -90,7 +90,7 @@ private fun LabLinkApp() {
     }
 
     fun sendPing() {
-        bluetoothState = bluetoothService.sendCommand(
+        bluetoothState = bluetoothService.sendCommandAndReadResponse(
             currentState = bluetoothState,
             command = "PING",
         )

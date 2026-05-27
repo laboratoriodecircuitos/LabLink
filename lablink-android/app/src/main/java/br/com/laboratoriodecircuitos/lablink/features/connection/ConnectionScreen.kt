@@ -63,6 +63,10 @@ fun ConnectionScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            LastReceivedMessageCard(lastReceivedMessage = bluetoothState.lastReceivedMessage)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             SelectedDeviceCard(selectedDevice = bluetoothState.selectedDevice)
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -162,6 +166,36 @@ private fun StatusCard(bluetoothState: BluetoothUiState) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(text = bluetoothState.message)
+        }
+    }
+}
+
+@Composable
+private fun LastReceivedMessageCard(lastReceivedMessage: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Última resposta recebida",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (lastReceivedMessage.isBlank()) {
+                Text(text = "Nenhuma resposta recebida ainda.")
+            } else {
+                Text(
+                    text = lastReceivedMessage,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
     }
 }
@@ -299,7 +333,8 @@ private fun ConnectionScreenPreview() {
         ConnectionScreen(
             bluetoothState = BluetoothUiState(
                 status = BluetoothConnectionStatus.Connected,
-                message = "Conectado a HC-06. Comunicação serial pronta.",
+                message = "Comando enviado: PING. Resposta recebida.",
+                lastReceivedMessage = "OK:PONG",
                 selectedDevice = BluetoothDeviceInfo(
                     name = "HC-06",
                     address = "20:16:05:11:38:71",
@@ -313,7 +348,7 @@ private fun ConnectionScreenPreview() {
             ),
             developmentNotes = listOf(
                 "Conexão RFCOMM/SPP validada com HC-06.",
-                "Envio inicial de comando serial em teste.",
+                "Leitura de resposta do Arduino em teste.",
             ),
             onRequestPermissions = {},
             onRefresh = {},
