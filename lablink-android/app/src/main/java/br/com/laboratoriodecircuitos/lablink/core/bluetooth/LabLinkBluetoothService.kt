@@ -76,7 +76,7 @@ class LabLinkBluetoothService {
                     BluetoothUiState(
                         status = BluetoothConnectionStatus.Ready,
                         pairedDevices = devices,
-                        message = "Dispositivos pareados encontrados: ${devices.size}.",
+                        message = "Dispositivos pareados encontrados: ${devices.size}. Toque em um dispositivo para selecionar.",
                     )
                 }
             }
@@ -88,11 +88,22 @@ class LabLinkBluetoothService {
         }
     }
 
+    fun selectDevice(
+        currentState: BluetoothUiState,
+        device: BluetoothDeviceInfo,
+    ): BluetoothUiState {
+        return currentState.copy(
+            selectedDevice = device,
+            message = "Dispositivo selecionado: ${device.name}. Próxima etapa: conectar ao módulo Bluetooth.",
+        )
+    }
+
     fun getDevelopmentNotes(): List<String> {
         return listOf(
             "Permissões Bluetooth adicionadas ao AndroidManifest.xml.",
             "Solicitação de permissões em runtime validada.",
-            "Listagem de dispositivos pareados preparada.",
+            "Listagem de dispositivos pareados validada.",
+            "Seleção de dispositivo pareado preparada.",
             "Conexão real com HC-05/HC-06 ainda não implementada.",
         )
     }

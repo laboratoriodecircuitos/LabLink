@@ -34,6 +34,7 @@ fun ConnectionScreen(
     onRequestPermissions: () -> Unit,
     onRefresh: () -> Unit,
     onLoadPairedDevices: () -> Unit,
+    onSelectDevice: (BluetoothDeviceInfo) -> Unit,
     onBack: () -> Unit,
 ) {
     Surface(
@@ -60,7 +61,15 @@ fun ConnectionScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            PairedDevicesCard(devices = bluetoothState.pairedDevices)
+            SelectedDeviceCard(selectedDevice = bluetoothState.selectedDevice)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            PairedDevicesCard(
+                devices = bluetoothState.pairedDevices,
+                selectedDevice = bluetoothState.selectedDevice,
+                onSelectDevice = onSelectDevice,
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -84,6 +93,16 @@ fun ConnectionScreen(
                 enabled = bluetoothState.status == BluetoothConnectionStatus.Ready,
             ) {
                 Text(text = "Buscar dispositivos pareados")
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = { },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = bluetoothState.selectedDevice != null,
+            ) {
+                Text(text = "Conectar ao dispositivo selecionado")
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -134,7 +153,45 @@ private fun StatusCard(bluetoothState: BluetoothUiState) {
 }
 
 @Composable
-private fun PairedDevicesCard(devices: List<BluetoothDeviceInfo>) {
+private fun SelectedDeviceCard(selectedDevice: BluetoothDeviceInfo?) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Dispositivo selecionado",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (selectedDevice == null) {
+                Text(text = "Nenhum dispositivo selecionado.")
+            } else {
+                Text(
+                    text = selectedDevice.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = selectedDevice.address,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PairedDevicesCard(
+    devices: List<BluetoothDeviceInfo>,
+    selectedDevice: BluetoothDeviceInfo?,
+    onSelectDevice: (BluetoothDeviceInfo) -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -154,16 +211,29 @@ private fun PairedDevicesCard(devices: List<BluetoothDeviceInfo>) {
                 Text(text = "Nenhum dispositivo listado ainda.")
             } else {
                 devices.forEach { device ->
+                    val isSelected = selectedDevice?.address == device.address
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = device.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = device.address,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+
+                    OutlinedButton(
+                        onClick = { onSelectDevice(device) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.Start,
+                        ) {
+                            Text(
+                                text = if (isSelected) "${device.name}  ✓" else device.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                text = device.address,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -215,7 +285,11 @@ private fun ConnectionScreenPreview() {
         ConnectionScreen(
             bluetoothState = BluetoothUiState(
                 status = BluetoothConnectionStatus.Ready,
-                message = "Dispositivos pareados encontrados: 1.",
+                message = "Dispositivo selecionado: HC-05. Próxima etapa: conectar ao módulo Bluetooth.",
+                selectedDevice = BluetoothDeviceInfo(
+                    name = "HC-05",
+                    address = "00:11:22:33:44:55",
+                ),
                 pairedDevices = listOf(
                     BluetoothDeviceInfo(
                         name = "HC-05",
@@ -225,11 +299,12 @@ private fun ConnectionScreenPreview() {
             ),
             developmentNotes = listOf(
                 "Permissões Bluetooth adicionadas ao AndroidManifest.xml.",
-                "Listagem de dispositivos pareados preparada.",
+                "Seleção de dispositivo pareado preparada.",
             ),
             onRequestPermissions = {},
             onRefresh = {},
             onLoadPairedDevices = {},
+            onSelectDevice = {},
             onBack = {},
         )
     }
