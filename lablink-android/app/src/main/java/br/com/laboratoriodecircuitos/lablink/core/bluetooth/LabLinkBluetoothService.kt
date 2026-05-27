@@ -330,6 +330,16 @@ class LabLinkBluetoothService {
         }
     }
 
+    fun disconnectDevice(currentState: BluetoothUiState): BluetoothUiState {
+        closeConnection()
+
+        return currentState.copy(
+            status = BluetoothConnectionStatus.Ready,
+            message = "Dispositivo desconectado. Você pode conectar novamente quando quiser.",
+            lastReceivedMessage = "",
+        )
+    }
+
     fun getDevelopmentNotes(): List<String> {
         return listOf(
             "Permissões Bluetooth adicionadas ao AndroidManifest.xml.",
@@ -339,3 +349,4 @@ class LabLinkBluetoothService {
         )
     }
 }
+

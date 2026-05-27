@@ -97,6 +97,10 @@ private fun LabLinkApp() {
         }.start()
     }
 
+    fun disconnectSelectedDevice() {
+        bluetoothState = bluetoothService.disconnectDevice(bluetoothState)
+    }
+
     fun sendCommand(command: String) {
         Thread {
             val resultState = bluetoothService.sendCommandAndReadResponse(
@@ -140,6 +144,9 @@ private fun LabLinkApp() {
             onConnectSelectedDevice = {
                 connectSelectedDevice()
             },
+            onDisconnectSelectedDevice = {
+                disconnectSelectedDevice()
+            },
             onOpenHome = { currentScreen = LabLinkScreen.Home },
             onOpenConnection = {
                 refreshBluetoothState()
@@ -176,4 +183,5 @@ private fun LabLinkApp() {
         )
     }
 }
+
 

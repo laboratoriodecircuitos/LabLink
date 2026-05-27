@@ -6,7 +6,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,30 +17,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bluetooth
-import androidx.compose.material.icons.rounded.BluetoothConnected
 import androidx.compose.material.icons.rounded.BluetoothSearching
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Devices
-import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Link
-import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material.icons.rounded.SettingsInputComponent
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -57,7 +46,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,11 +61,9 @@ private val CardDark = Color(0xFF151515)
 private val AccentYellow = Color(0xFFFFE382)
 private val AccentPurple = Color(0xFFE5BEFF)
 private val AccentGreen = Color(0xFFC4FA8C)
-private val AccentOrange = Color(0xFFFFB87A)
 private val TextDim = Color(0xFF8A8A8A)
 private val WhiteSoft = Color(0xFFFFFFFF)
-private val BorderSoft = Color.White.copy(alpha = 0.05f)
-private val BorderMedium = Color.White.copy(alpha = 0.10f)
+private val BorderSoft = Color.White.copy(alpha = 0.06f)
 
 @Composable
 fun ConnectionScreen(
@@ -88,6 +74,7 @@ fun ConnectionScreen(
     onLoadPairedDevices: () -> Unit,
     onSelectDevice: (BluetoothDeviceInfo) -> Unit,
     onConnectSelectedDevice: () -> Unit,
+    onDisconnectSelectedDevice: () -> Unit,
     onOpenHome: () -> Unit = {},
     onOpenConnection: () -> Unit = {},
     onOpenTerminal: () -> Unit = {},
@@ -99,6 +86,7 @@ fun ConnectionScreen(
 
     val isConnected = bluetoothState.status == BluetoothConnectionStatus.Connected
     val selectedDevice = bluetoothState.selectedDevice
+    val hasDevices = bluetoothState.pairedDevices.isNotEmpty()
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -113,39 +101,99 @@ fun ConnectionScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .padding(top = 112.dp, bottom = 32.dp),
+                    .padding(top = 112.dp, bottom = 40.dp),
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
-                    IntroSection()
-
-                    StatusCard(bluetoothState = bluetoothState)
-
-                    SelectedDeviceCard(selectedDevice = selectedDevice)
-
-                    PairedDevicesSection(
-                        devices = bluetoothState.pairedDevices,
+                    ConnectionHeader(
+                        isConnected = isConnected,
                         selectedDevice = selectedDevice,
-                        onSelectDevice = onSelectDevice,
+                        hasDevices = hasDevices,
                     )
 
-                    ActionsGrid(
-                        bluetoothState = bluetoothState,
-                        onRequestPermissions = onRequestPermissions,
-                        onLoadPairedDevices = onLoadPairedDevices,
-                        onConnectSelectedDevice = onConnectSelectedDevice,
-                        onOpenControls = onOpenControls,
-                        onRefresh = onRefresh,
-                    )
+                    when {
+                        bluetoothState.status == BluetoothConnectionStatus.PermissionRequired -> {
+                            StepCard(
+                                step = "Permissão necessária",
+                                title = "Libere o acesso ao Bluetooth",
+                                description = "O Android precisa permitir que o LabLink encontre e conecte ao seu módulo HC-05 ou HC-06.",
+                                icon = Icons.Rounded.Bluetooth,
+                                iconColor = AccentYellow,
+                            )
 
-                    TechnicalNotesCard(developmentNotes = developmentNotes)
+                            PrimaryActionButton(
+                                title = "Permitir Bluetooth",
+                                subtitle = "Solicitar permissões do Android",
+                                icon = Icons.Rounded.Check,
+                                backgroundColor = AccentYellow,
+                                onClick = onRequestPermissions,
+                            )
+                        }
+
+                        bluetoothState.status == BluetoothConnectionStatus.BluetoothDisabled -> {
+                            StepCard(
+                                step = "Bluetooth desligado",
+                                title = "Ative o Bluetooth do celular",
+                                description = "Ligue o Bluetooth nas configurações do Android e depois atualize esta tela.",
+                                icon = Icons.Rounded.Bluetooth,
+                                iconColor = TextDim,
+                            )
+
+                            PrimaryActionButton(
+                                title = "Atualizar status",
+                                subtitle = "Verificar novamente",
+                                icon = Icons.Rounded.Refresh,
+                                backgroundColor = AccentPurple,
+                                onClick = onRefresh,
+                            )
+                        }
+
+                        isConnected && selectedDevice != null -> {
+                            ConnectedContent(
+                                device = selectedDevice,
+                                onDisconnect = onDisconnectSelectedDevice,
+                                onOpenControls = onOpenControls,
+                            )
+                        }
+
+                        selectedDevice != null -> {
+                            SelectedDeviceContent(
+                                device = selectedDevice,
+                                status = bluetoothState.status,
+                                onConnect = onConnectSelectedDevice,
+                                onSearchAgain = onLoadPairedDevices,
+                            )
+                        }
+
+                        hasDevices -> {
+                            DeviceSelectionContent(
+                                devices = bluetoothState.pairedDevices,
+                                onSelectDevice = onSelectDevice,
+                                onSearchAgain = onLoadPairedDevices,
+                            )
+                        }
+
+                        else -> {
+                            StartSearchContent(
+                                onSearch = onLoadPairedDevices,
+                                onRefresh = onRefresh,
+                            )
+                        }
+                    }
+
+                    if (bluetoothState.status == BluetoothConnectionStatus.Error) {
+                        SimpleMessageCard(
+                            title = "Não foi possível conectar",
+                            message = "Confira se o HC-06 está ligado, pareado no Android e próximo do celular.",
+                        )
+                    }
                 }
             }
+
             LabLinkTopAppBar(
                 title = "Bluetooth",
                 isBluetoothConnected = isConnected,
@@ -188,529 +236,359 @@ fun ConnectionScreen(
 }
 
 @Composable
-private fun TopAppBar(isConnected: Boolean) {
+private fun ConnectionHeader(
+    isConnected: Boolean,
+    selectedDevice: BluetoothDeviceInfo?,
+    hasDevices: Boolean,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(96.dp)
-            .background(BgDeep.copy(alpha = 0.94f))
-            .padding(horizontal = 16.dp),
+            .padding(top = 4.dp, bottom = 4.dp),
     ) {
-        Spacer(modifier = Modifier.height(30.dp))
+        Text(
+            text = "Conectar dispositivo",
+            color = WhiteSoft,
+            fontSize = 28.sp,
+            lineHeight = 34.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = (-0.4).sp,
+        )
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Bluetooth,
-                    contentDescription = null,
-                    tint = WhiteSoft,
-                    modifier = Modifier.size(24.dp),
-                )
+        Spacer(modifier = Modifier.height(12.dp))
 
-                Text(
-                    text = "Bluetooth",
-                    color = WhiteSoft,
-                    fontSize = 20.sp,
-                    lineHeight = 24.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = (-0.2).sp,
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .background(CardDark, RoundedCornerShape(999.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(
-                    imageVector = if (isConnected) Icons.Rounded.BluetoothConnected else Icons.Rounded.BluetoothSearching,
-                    contentDescription = null,
-                    tint = if (isConnected) AccentGreen else TextDim,
-                    modifier = Modifier.size(14.dp),
-                )
-
-                Text(
-                    text = if (isConnected) "Conectado" else "Aguardando",
-                    color = WhiteSoft,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
-        }
+        Text(
+            text = when {
+                isConnected -> "Tudo pronto. Agora você pode controlar seu projeto Arduino."
+                selectedDevice != null -> "Dispositivo escolhido. Agora é só conectar."
+                hasDevices -> "Escolha o módulo Bluetooth do seu projeto."
+                else -> "Vamos encontrar um módulo HC-05 ou HC-06 pareado no Android."
+            },
+            color = WhiteSoft.copy(alpha = 0.78f),
+            fontSize = 16.sp,
+            lineHeight = 24.sp,
+        )
     }
 }
 
 @Composable
-private fun IntroSection() {
-    Text(
-        text = "Conecte o app ao módulo HC-05 ou HC-06 pareado no Android.",
-        color = TextDim,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        fontWeight = FontWeight.Normal,
+private fun StartSearchContent(
+    onSearch: () -> Unit,
+    onRefresh: () -> Unit,
+) {
+    StepCard(
+        step = "Passo 1",
+        title = "Busque seus dispositivos pareados",
+        description = "Antes de conectar, o módulo HC-05 ou HC-06 precisa estar pareado nas configurações Bluetooth do Android.",
+        icon = Icons.Rounded.BluetoothSearching,
+        iconColor = AccentPurple,
+    )
+
+    PrimaryActionButton(
+        title = "Buscar dispositivos pareados",
+        subtitle = "Carregar lista do Android",
+        icon = Icons.Rounded.BluetoothSearching,
+        backgroundColor = AccentPurple,
+        onClick = onSearch,
+    )
+
+    SecondaryActionButton(
+        title = "Atualizar status do Bluetooth",
+        onClick = onRefresh,
     )
 }
 
 @Composable
-private fun StatusCard(bluetoothState: BluetoothUiState) {
-    val isConnected = bluetoothState.status == BluetoothConnectionStatus.Connected
+private fun DeviceSelectionContent(
+    devices: List<BluetoothDeviceInfo>,
+    onSelectDevice: (BluetoothDeviceInfo) -> Unit,
+    onSearchAgain: () -> Unit,
+) {
+    StepCard(
+        step = "Passo 2",
+        title = "Escolha o módulo do projeto",
+        description = "Toque no HC-05 ou HC-06 que está ligado ao Arduino.",
+        icon = Icons.Rounded.Devices,
+        iconColor = AccentYellow,
+    )
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(20.dp))
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.SettingsInputComponent,
-                    contentDescription = null,
-                    tint = if (isConnected) AccentGreen else AccentPurple,
-                    modifier = Modifier.size(16.dp),
-                )
-
-                Text(
-                    text = bluetoothState.status.toDisplayText(),
-                    color = WhiteSoft,
-                    fontSize = 16.sp,
-                    lineHeight = 22.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = bluetoothState.message,
-                color = TextDim,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
+        devices.forEach { device ->
+            DeviceItem(
+                device = device,
+                onClick = { onSelectDevice(device) },
             )
         }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        StatusPill(isConnected = isConnected)
     }
+
+    SecondaryActionButton(
+        title = "Buscar novamente",
+        onClick = onSearchAgain,
+    )
 }
 
 @Composable
-private fun StatusPill(isConnected: Boolean) {
+private fun SelectedDeviceContent(
+    device: BluetoothDeviceInfo,
+    status: BluetoothConnectionStatus,
+    onConnect: () -> Unit,
+    onSearchAgain: () -> Unit,
+) {
+    StepCard(
+        step = "Passo 3",
+        title = "${device.name} selecionado",
+        description = "Agora abra a comunicação Bluetooth com o Arduino.",
+        icon = Icons.Rounded.Link,
+        iconColor = AccentYellow,
+    )
+
+    SelectedDeviceCard(device = device)
+
+    PrimaryActionButton(
+        title = if (status == BluetoothConnectionStatus.Connecting) "Conectando..." else "Conectar ao ${device.name}",
+        subtitle = "Abrir comunicação Bluetooth",
+        icon = Icons.Rounded.Link,
+        backgroundColor = AccentYellow,
+        enabled = status != BluetoothConnectionStatus.Connecting,
+        onClick = onConnect,
+    )
+
+    SecondaryActionButton(
+        title = "Escolher outro dispositivo",
+        onClick = onSearchAgain,
+    )
+}
+
+@Composable
+private fun ConnectedContent(
+    device: BluetoothDeviceInfo,
+    onDisconnect: () -> Unit,
+    onOpenControls: () -> Unit,
+) {
+    StepCard(
+        step = "Conectado",
+        title = "${device.name} conectado",
+        description = "Pronto para enviar comandos para o Arduino.",
+        icon = Icons.Rounded.Check,
+        iconColor = AccentGreen,
+    )
+
+    SelectedDeviceCard(device = device)
+
+    PrimaryActionButton(
+        title = "Desconectar",
+        subtitle = "Encerrar conexão Bluetooth",
+        icon = Icons.Rounded.Bluetooth,
+        backgroundColor = CardDark,
+        contentColor = WhiteSoft,
+        border = true,
+        onClick = onDisconnect,
+    )
+
+    PrimaryActionButton(
+        title = "Ir para Controles",
+        subtitle = "PING, LED ON e LED OFF",
+        icon = Icons.Rounded.Tune,
+        backgroundColor = AccentGreen,
+        onClick = onOpenControls,
+    )
+}
+
+@Composable
+private fun StepCard(
+    step: String,
+    title: String,
+    description: String,
+    icon: ImageVector,
+    iconColor: Color,
+) {
     Row(
         modifier = Modifier
-            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
-            .border(1.dp, BorderMedium, RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 10.dp),
+            .fillMaxWidth()
+            .background(CardDark, RoundedCornerShape(24.dp))
+            .border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
+            .padding(18.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(10.dp)
-                .background(
-                    color = if (isConnected) AccentGreen else TextDim,
-                    shape = CircleShape,
-                ),
-        )
-
-        Text(
-            text = if (isConnected) "Serial pronta" else "Sem conexão",
-            color = TextDim,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
-            fontFamily = FontFamily.Monospace,
-        )
-    }
-}
-
-@Composable
-private fun SelectedDeviceCard(selectedDevice: BluetoothDeviceInfo?) {
-    Column {
-        SectionHeader(
-            icon = Icons.Rounded.Devices,
-            title = "DISPOSITIVO SELECIONADO",
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(CardDark, RoundedCornerShape(18.dp))
-                .border(1.dp, Color(0xFF2BCBFF).copy(alpha = 0.8f), RoundedCornerShape(18.dp))
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+                .size(48.dp)
+                .background(iconColor.copy(alpha = 0.16f), CircleShape),
+            contentAlignment = Alignment.Center,
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.SettingsInputComponent,
-                        contentDescription = null,
-                        tint = Color(0xFF2BCBFF),
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(24.dp),
+            )
+        }
 
-                Column {
-                    Text(
-                        text = selectedDevice?.name ?: "Nenhum dispositivo",
-                        color = WhiteSoft,
-                        fontSize = 16.sp,
-                        lineHeight = 22.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+        Column(
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                text = step,
+                color = TextDim,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.Medium,
+            )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-                    Text(
-                        text = selectedDevice?.address ?: "Selecione um módulo pareado abaixo",
-                        color = TextDim,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp,
-                        fontFamily = if (selectedDevice != null) FontFamily.Monospace else FontFamily.Default,
-                    )
-                }
-            }
+            Text(
+                text = title,
+                color = WhiteSoft,
+                fontSize = 18.sp,
+                lineHeight = 23.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
 
-            if (selectedDevice != null) {
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .background(AccentGreen, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Check,
-                        contentDescription = null,
-                        tint = Color.Black,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = description,
+                color = TextDim,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+            )
         }
     }
 }
 
 @Composable
-private fun PairedDevicesSection(
-    devices: List<BluetoothDeviceInfo>,
-    selectedDevice: BluetoothDeviceInfo?,
-    onSelectDevice: (BluetoothDeviceInfo) -> Unit,
-) {
-    Column {
-        SectionHeader(
-            icon = Icons.Rounded.BluetoothSearching,
-            title = "DISPOSITIVOS PAREADOS",
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (devices.isEmpty()) {
-            EmptyDevicesCard()
-        } else {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                devices.forEach { device ->
-                    DeviceListItem(
-                        device = device,
-                        selected = selectedDevice?.address == device.address,
-                        onClick = { onSelectDevice(device) },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyDevicesCard() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(20.dp))
-            .border(1.dp, BorderSoft, RoundedCornerShape(20.dp))
-            .padding(16.dp),
-    ) {
-        Text(
-            text = "Nenhum dispositivo listado ainda.",
-            color = WhiteSoft,
-            fontSize = 16.sp,
-            lineHeight = 22.sp,
-            fontWeight = FontWeight.Medium,
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = "Toque em Buscar dispositivos pareados para carregar módulos já pareados nas configurações do Android.",
-            color = TextDim,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
-        )
-    }
-}
-
-@Composable
-private fun DeviceListItem(
+private fun DeviceItem(
     device: BluetoothDeviceInfo,
-    selected: Boolean,
     onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                color = if (selected) AccentYellow else CardDark,
-                shape = RoundedCornerShape(16.dp),
-            )
-            .then(
-                if (selected) {
-                    Modifier
-                } else {
-                    Modifier.border(1.dp, BorderSoft, RoundedCornerShape(16.dp))
-                }
-            )
+            .background(CardDark, RoundedCornerShape(18.dp))
+            .border(1.dp, BorderSoft, RoundedCornerShape(18.dp))
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .background(Color.White.copy(alpha = 0.06f), CircleShape),
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = if (selected) Icons.Rounded.Bluetooth else Icons.Rounded.BluetoothConnected,
+                imageVector = Icons.Rounded.Bluetooth,
                 contentDescription = null,
-                tint = if (selected) Color.Black else TextDim,
-                modifier = Modifier.size(18.dp),
+                tint = AccentPurple,
+                modifier = Modifier.size(20.dp),
             )
-
-            Column {
-                Text(
-                    text = device.name,
-                    color = if (selected) Color.Black else WhiteSoft,
-                    fontSize = 15.sp,
-                    lineHeight = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = device.address,
-                    color = if (selected) Color.Black.copy(alpha = 0.60f) else TextDim,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                    fontFamily = FontFamily.Monospace,
-                )
-            }
         }
-
-        if (selected) {
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .background(Color.Black, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Check,
-                    contentDescription = null,
-                    tint = AccentYellow,
-                    modifier = Modifier.size(14.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ActionsGrid(
-    bluetoothState: BluetoothUiState,
-    onRequestPermissions: () -> Unit,
-    onLoadPairedDevices: () -> Unit,
-    onConnectSelectedDevice: () -> Unit,
-    onOpenControls: () -> Unit,
-    onRefresh: () -> Unit,
-) {
-    Column {
-        SectionHeader(
-            icon = Icons.Rounded.Tune,
-            title = "AÇÕES",
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
 
         Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.weight(1f),
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                MiniActionCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Permissões`nBluetooth",
-                    icon = Icons.Rounded.Security,
-                    backgroundColor = CardDark,
-                    contentColor = WhiteSoft,
-                    enabled = bluetoothState.status == BluetoothConnectionStatus.PermissionRequired,
-                    onClick = onRequestPermissions,
-                )
+            Text(
+                text = device.name,
+                color = WhiteSoft,
+                fontSize = 16.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
 
-                MiniActionCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Buscar`npareados",
-                    icon = Icons.Rounded.BluetoothSearching,
-                    backgroundColor = AccentPurple,
-                    contentColor = Color.Black,
-                    enabled = bluetoothState.status == BluetoothConnectionStatus.Ready || bluetoothState.status == BluetoothConnectionStatus.Connected,
-                    onClick = onLoadPairedDevices,
-                )
-            }
+            Spacer(modifier = Modifier.height(4.dp))
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                MiniActionCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Conectar",
-                    icon = Icons.Rounded.Link,
-                    backgroundColor = AccentYellow,
-                    contentColor = Color.Black,
-                    enabled = bluetoothState.selectedDevice != null &&
-                        bluetoothState.status != BluetoothConnectionStatus.Connecting &&
-                        bluetoothState.status != BluetoothConnectionStatus.Connected,
-                    onClick = onConnectSelectedDevice,
-                )
-
-                MiniActionCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Ir para`nControles",
-                    icon = Icons.Rounded.Tune,
-                    backgroundColor = AccentGreen,
-                    contentColor = Color.Black,
-                    enabled = bluetoothState.status == BluetoothConnectionStatus.Connected,
-                    onClick = onOpenControls,
-                )
-            }
-
-            ActionCard(
-                title = "Atualizar status",
-                subtitle = "Reavaliar Bluetooth e permissões",
-                icon = Icons.Rounded.Refresh,
-                backgroundColor = CardDark,
-                contentColor = WhiteSoft,
-                iconBackground = Color.White.copy(alpha = 0.05f),
-                enabled = true,
-                onClick = onRefresh,
+            Text(
+                text = device.address,
+                color = TextDim,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                fontFamily = FontFamily.Monospace,
             )
         }
     }
 }
 
-
 @Composable
-private fun MiniActionCard(
-    modifier: Modifier = Modifier,
-    title: String,
-    icon: ImageVector,
-    backgroundColor: Color,
-    contentColor: Color,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier = modifier
-            .height(92.dp)
-            .alpha(if (enabled) 1f else 0.45f)
-            .background(backgroundColor, RoundedCornerShape(16.dp))
-            .then(
-                if (backgroundColor == CardDark) {
-                    Modifier.border(1.dp, BorderSoft, RoundedCornerShape(16.dp))
-                } else {
-                    Modifier
-                }
-            )
-            .clickable(enabled = enabled) { onClick() }
-            .padding(14.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
+private fun SelectedDeviceCard(device: BluetoothDeviceInfo) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CardDark, RoundedCornerShape(18.dp))
+            .border(1.dp, AccentGreen.copy(alpha = 0.50f), RoundedCornerShape(18.dp))
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = contentColor,
-            modifier = Modifier.size(18.dp),
-        )
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .background(AccentGreen.copy(alpha = 0.14f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Check,
+                contentDescription = null,
+                tint = AccentGreen,
+                modifier = Modifier.size(20.dp),
+            )
+        }
 
-        Text(
-            text = title,
-            color = contentColor,
-            fontSize = 14.sp,
-            lineHeight = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
+        Column(
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                text = device.name,
+                color = WhiteSoft,
+                fontSize = 16.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = device.address,
+                color = TextDim,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
     }
 }
+
 @Composable
-private fun ActionCard(
+private fun PrimaryActionButton(
     title: String,
     subtitle: String,
     icon: ImageVector,
     backgroundColor: Color,
-    contentColor: Color,
-    iconBackground: Color,
-    enabled: Boolean,
     onClick: () -> Unit,
+    contentColor: Color = Color.Black,
+    enabled: Boolean = true,
+    border: Boolean = false,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (enabled) 1f else 0.45f)
-            .background(backgroundColor, RoundedCornerShape(28.dp))
+            .alpha(if (enabled) 1f else 0.50f)
+            .background(backgroundColor, RoundedCornerShape(24.dp))
             .then(
-                if (backgroundColor == CardDark) {
-                    Modifier.border(1.dp, BorderSoft, RoundedCornerShape(28.dp))
+                if (border) {
+                    Modifier.border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
                 } else {
                     Modifier
                 }
             )
             .clickable(enabled = enabled) { onClick() }
             .padding(20.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Column(
             modifier = Modifier.weight(1f),
@@ -718,8 +596,8 @@ private fun ActionCard(
             Text(
                 text = title,
                 color = contentColor,
-                fontSize = 18.sp,
-                lineHeight = 22.sp,
+                fontSize = 20.sp,
+                lineHeight = 25.sp,
                 fontWeight = FontWeight.SemiBold,
             )
 
@@ -727,18 +605,16 @@ private fun ActionCard(
 
             Text(
                 text = subtitle,
-                color = contentColor.copy(alpha = if (contentColor == Color.Black) 0.60f else 0.62f),
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
+                color = contentColor.copy(alpha = if (contentColor == Color.Black) 0.68f else 0.72f),
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
             )
         }
 
-        Spacer(modifier = Modifier.width(16.dp))
-
         Box(
             modifier = Modifier
-                .size(40.dp)
-                .background(iconBackground, CircleShape),
+                .size(42.dp)
+                .background(contentColor.copy(alpha = 0.10f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -752,166 +628,57 @@ private fun ActionCard(
 }
 
 @Composable
-private fun TechnicalNotesCard(developmentNotes: List<String>) {
-    Column(
-        modifier = Modifier.alpha(0.78f),
-    ) {
-        SectionHeader(
-            icon = Icons.Rounded.Tune,
-            title = "LOGS TÉCNICOS",
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(CardDark, RoundedCornerShape(16.dp))
-                .border(1.dp, BorderSoft, RoundedCornerShape(16.dp))
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            developmentNotes.forEach { note ->
-                Text(
-                    text = "> $note",
-                    color = AccentGreen,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                    fontFamily = FontFamily.Monospace,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SectionHeader(
-    icon: ImageVector,
+private fun SecondaryActionButton(
     title: String,
+    onClick: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.padding(horizontal = 1.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(18.dp))
+            .border(1.dp, BorderSoft, RoundedCornerShape(18.dp))
+            .clickable { onClick() }
+            .padding(vertical = 15.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = TextDim,
-            modifier = Modifier.size(14.dp),
-        )
-
         Text(
             text = title,
-            color = TextDim,
+            color = WhiteSoft.copy(alpha = 0.84f),
             fontSize = 14.sp,
-            lineHeight = 20.sp,
+            lineHeight = 18.sp,
             fontWeight = FontWeight.Medium,
         )
     }
 }
 
 @Composable
-private fun BottomNavBar(
-    modifier: Modifier = Modifier,
-    onHome: () -> Unit,
-    onBluetooth: () -> Unit,
-    onMore: () -> Unit,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(BgDeep.copy(alpha = 0.95f))
-            .navigationBarsPadding(),
-    ) {
-        HorizontalDivider(
-            color = Color.White.copy(alpha = 0.05f),
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            BottomNavItem(
-                icon = Icons.Rounded.Home,
-                label = "Início",
-                selected = false,
-                onClick = onHome,
-            )
-
-            BottomNavItem(
-                icon = Icons.Rounded.Bluetooth,
-                label = "Bluetooth",
-                selected = true,
-                onClick = onBluetooth,
-            )
-
-            BottomNavItem(
-                icon = Icons.Rounded.MoreHoriz,
-                label = "Mais",
-                selected = false,
-                onClick = onMore,
-            )
-        }
-    }
-}
-
-@Composable
-private fun BottomNavItem(
-    icon: ImageVector,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
+private fun SimpleMessageCard(
+    title: String,
+    message: String,
 ) {
     Column(
         modifier = Modifier
-            .widthIn(min = 72.dp)
-            .clickable { onClick() },
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+            .fillMaxWidth()
+            .background(CardDark, RoundedCornerShape(18.dp))
+            .border(1.dp, AccentYellow.copy(alpha = 0.28f), RoundedCornerShape(18.dp))
+            .padding(16.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .width(48.dp)
-                .height(32.dp)
-                .background(
-                    color = if (selected) Color.White.copy(alpha = 0.10f) else Color.Transparent,
-                    shape = RoundedCornerShape(999.dp),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (selected) WhiteSoft else TextDim,
-                modifier = Modifier.size(24.dp),
-            )
-        }
+        Text(
+            text = title,
+            color = WhiteSoft,
+            fontSize = 16.sp,
+            lineHeight = 22.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = label,
-            color = if (selected) WhiteSoft else TextDim,
-            fontSize = 10.sp,
-            lineHeight = 12.sp,
-            fontWeight = FontWeight.Medium,
+            text = message,
+            color = TextDim,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
         )
-    }
-}
-
-private fun BluetoothConnectionStatus.toDisplayText(): String {
-    return when (this) {
-        BluetoothConnectionStatus.Disconnected -> "Desconectado"
-        BluetoothConnectionStatus.CheckingPermissions -> "Verificando permissões"
-        BluetoothConnectionStatus.PermissionRequired -> "Permissão necessária"
-        BluetoothConnectionStatus.BluetoothUnavailable -> "Bluetooth indisponível"
-        BluetoothConnectionStatus.BluetoothDisabled -> "Bluetooth desligado"
-        BluetoothConnectionStatus.Ready -> "Pronto para conectar"
-        BluetoothConnectionStatus.Connecting -> "Conectando"
-        BluetoothConnectionStatus.Connected -> "Conectado"
-        BluetoothConnectionStatus.Error -> "Erro"
     }
 }
 
@@ -922,7 +689,7 @@ private fun ConnectionScreenPreview() {
         ConnectionScreen(
             bluetoothState = BluetoothUiState(
                 status = BluetoothConnectionStatus.Connected,
-                message = "Conectado a HC-06 por RFCOMM insecure. Comunicação serial pronta.",
+                message = "Conectado a HC-06.",
                 selectedDevice = BluetoothDeviceInfo(
                     name = "HC-06",
                     address = "20:16:05:11:38:71",
@@ -932,22 +699,15 @@ private fun ConnectionScreenPreview() {
                         name = "HC-06",
                         address = "20:16:05:11:38:71",
                     ),
-                    BluetoothDeviceInfo(
-                        name = "Fone Bluetooth",
-                        address = "AA:BB:CC:DD:EE:FF",
-                    ),
                 ),
             ),
-            developmentNotes = listOf(
-                "Permissões Bluetooth adicionadas ao AndroidManifest.xml.",
-                "Conexão RFCOMM/SPP validada com HC-06.",
-                "Comandos movidos para a tela Controles.",
-            ),
+            developmentNotes = emptyList(),
             onRequestPermissions = {},
             onRefresh = {},
             onLoadPairedDevices = {},
             onSelectDevice = {},
             onConnectSelectedDevice = {},
+            onDisconnectSelectedDevice = {},
             onOpenHome = {},
             onOpenConnection = {},
             onOpenTerminal = {},
@@ -956,7 +716,3 @@ private fun ConnectionScreenPreview() {
         )
     }
 }
-
-
-
-
