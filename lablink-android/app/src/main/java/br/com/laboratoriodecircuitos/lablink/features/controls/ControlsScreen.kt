@@ -1,5 +1,11 @@
-﻿package br.com.laboratoriodecircuitos.lablink.features.controls
+package br.com.laboratoriodecircuitos.lablink.features.controls
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,37 +18,32 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.rounded.Autorenew
-import androidx.compose.material.icons.rounded.Bluetooth
-import androidx.compose.material.icons.rounded.BluetoothConnected
 import androidx.compose.material.icons.rounded.CompareArrows
 import androidx.compose.material.icons.rounded.Construction
 import androidx.compose.material.icons.rounded.Gamepad
 import androidx.compose.material.icons.rounded.GridView
-import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Lightbulb
-import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.rounded.LinearScale
 import androidx.compose.material.icons.rounded.Memory
-import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Terminal
-import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -57,6 +58,8 @@ import androidx.compose.ui.unit.sp
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothConnectionStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothUiState
+import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkDrawer
+import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkTopAppBar
 import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
 
 private val BgDeep = Color(0xFF000000)
@@ -75,10 +78,14 @@ fun ControlsScreen(
     onSendPing: () -> Unit,
     onTurnLedOn: () -> Unit,
     onTurnLedOff: () -> Unit,
+    onOpenHome: () -> Unit,
     onOpenConnection: () -> Unit,
-    onBack: () -> Unit,
+    onOpenTerminal: () -> Unit,
+    onOpenControls: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    var drawerOpen by remember { mutableStateOf(false) }
+
     val isConnected = bluetoothState.status == BluetoothConnectionStatus.Connected
     val deviceName = bluetoothState.selectedDevice?.name ?: "HC-06"
     val deviceAddress = bluetoothState.selectedDevice?.address ?: "20:16:05:11:38:71"
@@ -97,10 +104,8 @@ fun ControlsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .padding(bottom = 132.dp),
+                    .padding(top = 112.dp, bottom = 32.dp),
             ) {
-                TopAppBar(isConnected = isConnected)
-
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -127,79 +132,41 @@ fun ControlsScreen(
                 }
             }
 
-            TopAppBar(
-                isConnected = isConnected,
+            LabLinkTopAppBar(
+                title = "Controles",
+                isBluetoothConnected = isConnected,
+                onOpenDrawer = { drawerOpen = true },
             )
 
-            BottomNavBar(
-                modifier = Modifier.align(Alignment.BottomCenter),
-                onHome = onBack,
-                onBluetooth = onOpenConnection,
-                onMore = {},
-            )
-        }
-    }
-}
-
-@Composable
-private fun TopAppBar(isConnected: Boolean) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(96.dp)
-            .background(BgDeep.copy(alpha = 0.90f))
-            .padding(horizontal = 16.dp),
-    ) {
-        Spacer(modifier = Modifier.height(30.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            AnimatedVisibility(
+                visible = drawerOpen,
+                enter = fadeIn(animationSpec = tween(180)) + slideInHorizontally(
+                    animationSpec = tween(260),
+                    initialOffsetX = { -it },
+                ),
+                exit = fadeOut(animationSpec = tween(160)) + slideOutHorizontally(
+                    animationSpec = tween(220),
+                    targetOffsetX = { -it },
+                ),
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Tune,
-                    contentDescription = null,
-                    tint = WhiteSoft,
-                    modifier = Modifier.size(24.dp),
-                )
-
-                Text(
-                    text = "Controles",
-                    color = WhiteSoft,
-                    fontSize = 20.sp,
-                    lineHeight = 24.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = (-0.2).sp,
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .background(CardDark, RoundedCornerShape(999.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.BluetoothConnected,
-                    contentDescription = null,
-                    tint = AccentGreen,
-                    modifier = Modifier.size(14.dp),
-                )
-
-                Text(
-                    text = if (isConnected) "Conectado" else "Desconectado",
-                    color = WhiteSoft,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                    fontWeight = FontWeight.Medium,
+                LabLinkDrawer(
+                    onClose = { drawerOpen = false },
+                    onOpenHome = {
+                        drawerOpen = false
+                        onOpenHome()
+                    },
+                    onOpenBluetooth = {
+                        drawerOpen = false
+                        onOpenConnection()
+                    },
+                    onOpenControls = {
+                        drawerOpen = false
+                        onOpenControls()
+                    },
+                    onOpenTerminal = {
+                        drawerOpen = false
+                        onOpenTerminal()
+                    },
                 )
             }
         }
@@ -629,96 +596,6 @@ private fun SectionHeader(
     }
 }
 
-@Composable
-private fun BottomNavBar(
-    modifier: Modifier = Modifier,
-    onHome: () -> Unit,
-    onBluetooth: () -> Unit,
-    onMore: () -> Unit,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(BgDeep.copy(alpha = 0.95f))
-            .navigationBarsPadding(),
-    ) {
-        HorizontalDivider(
-            color = Color.White.copy(alpha = 0.05f),
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            BottomNavItem(
-                icon = Icons.Rounded.Home,
-                label = "Início",
-                selected = true,
-                onClick = onHome,
-            )
-
-            BottomNavItem(
-                icon = Icons.Rounded.Bluetooth,
-                label = "Bluetooth",
-                selected = false,
-                onClick = onBluetooth,
-            )
-
-            BottomNavItem(
-                icon = Icons.Rounded.MoreHoriz,
-                label = "Mais",
-                selected = false,
-                onClick = onMore,
-            )
-        }
-    }
-}
-
-@Composable
-private fun BottomNavItem(
-    icon: ImageVector,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .widthIn(min = 72.dp)
-            .clickable { onClick() },
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .width(48.dp)
-                .height(32.dp)
-                .background(
-                    color = if (selected) Color.White.copy(alpha = 0.10f) else Color.Transparent,
-                    shape = RoundedCornerShape(999.dp),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (selected) WhiteSoft else TextDim,
-                modifier = Modifier.size(24.dp),
-            )
-        }
-
-        Text(
-            text = label,
-            color = if (selected) WhiteSoft else TextDim,
-            fontSize = 10.sp,
-            lineHeight = 12.sp,
-            fontWeight = FontWeight.Medium,
-        )
-    }
-}
-
 @Preview(showBackground = true)
 @Composable
 private fun ControlsScreenPreview() {
@@ -736,14 +613,10 @@ private fun ControlsScreenPreview() {
             onSendPing = {},
             onTurnLedOn = {},
             onTurnLedOff = {},
+            onOpenHome = {},
             onOpenConnection = {},
-            onBack = {},
+            onOpenTerminal = {},
+            onOpenControls = {},
         )
     }
 }
-
-
-
-
-
-

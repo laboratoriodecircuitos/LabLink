@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothConnectionStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPermissionHelper
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothService
@@ -52,14 +53,21 @@ private fun LabLinkApp() {
         mutableStateOf(bluetoothService.evaluateInitialState(context))
     }
 
+    val isBluetoothConnectedForUi =
+        bluetoothState.status == BluetoothConnectionStatus.Connected
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) {
-        bluetoothState = bluetoothService.evaluateInitialState(context)
+        if (bluetoothState.status != BluetoothConnectionStatus.Connected) {
+            bluetoothState = bluetoothService.evaluateInitialState(context)
+        }
     }
 
     fun refreshBluetoothState() {
-        bluetoothState = bluetoothService.evaluateInitialState(context)
+        if (bluetoothState.status != BluetoothConnectionStatus.Connected) {
+            bluetoothState = bluetoothService.evaluateInitialState(context)
+        }
     }
 
     fun loadPairedDevices() {
@@ -104,6 +112,8 @@ private fun LabLinkApp() {
 
     when (currentScreen) {
         LabLinkScreen.Home -> LabLinkHomeScreen(
+            isBluetoothConnected = isBluetoothConnectedForUi,
+            onOpenHome = { currentScreen = LabLinkScreen.Home },
             onOpenConnection = {
                 refreshBluetoothState()
                 currentScreen = LabLinkScreen.Connection
@@ -135,7 +145,14 @@ private fun LabLinkApp() {
         )
 
         LabLinkScreen.Terminal -> TerminalScreen(
-            onBack = { currentScreen = LabLinkScreen.Home },
+            isBluetoothConnected = isBluetoothConnectedForUi,
+            onOpenHome = { currentScreen = LabLinkScreen.Home },
+            onOpenConnection = {
+                refreshBluetoothState()
+                currentScreen = LabLinkScreen.Connection
+            },
+            onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
+            onOpenControls = { currentScreen = LabLinkScreen.Controls },
         )
 
         LabLinkScreen.Controls -> ControlsScreen(
@@ -143,8 +160,13 @@ private fun LabLinkApp() {
             onSendPing = { sendCommand("PING") },
             onTurnLedOn = { sendCommand("LED:ON") },
             onTurnLedOff = { sendCommand("LED:OFF") },
-            onOpenConnection = { currentScreen = LabLinkScreen.Connection },
-            onBack = { currentScreen = LabLinkScreen.Home },
+            onOpenHome = { currentScreen = LabLinkScreen.Home },
+            onOpenConnection = {
+                refreshBluetoothState()
+                currentScreen = LabLinkScreen.Connection
+            },
+            onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
+            onOpenControls = { currentScreen = LabLinkScreen.Controls },
         )
     }
 }
