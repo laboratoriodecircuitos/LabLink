@@ -25,7 +25,11 @@ import androidx.compose.ui.unit.dp
 import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
 
 @Composable
-fun LabLinkHomeScreen() {
+fun LabLinkHomeScreen(
+    onOpenConnection: () -> Unit,
+    onOpenTerminal: () -> Unit,
+    onOpenControls: () -> Unit,
+) {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -58,7 +62,7 @@ fun LabLinkHomeScreen() {
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = { },
+                onClick = onOpenConnection,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(text = "Conectar ao Bluetooth")
@@ -67,7 +71,7 @@ fun LabLinkHomeScreen() {
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedButton(
-                onClick = { },
+                onClick = onOpenTerminal,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(text = "Terminal")
@@ -76,7 +80,7 @@ fun LabLinkHomeScreen() {
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedButton(
-                onClick = { },
+                onClick = onOpenControls,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(text = "Controles")
@@ -85,7 +89,7 @@ fun LabLinkHomeScreen() {
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Versão inicial de interface. Bluetooth ainda não implementado.",
+                text = "Versão inicial de navegação. Bluetooth ainda não implementado.",
                 style = MaterialTheme.typography.bodySmall
             )
         }
@@ -123,6 +127,10 @@ private fun StatusCard() {
 @Composable
 private fun LabLinkHomeScreenPreview() {
     LabLinkTheme {
-        LabLinkHomeScreen()
+        LabLinkHomeScreen(
+            onOpenConnection = {},
+            onOpenTerminal = {},
+            onOpenControls = {},
+        )
     }
 }
