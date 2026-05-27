@@ -29,7 +29,7 @@ class LabLinkBluetoothService {
 
                 else -> BluetoothUiState(
                     status = BluetoothConnectionStatus.Ready,
-                    message = "Permissões concedidas. Bluetooth pronto para a próxima etapa.",
+                    message = "Permissões concedidas. Bluetooth pronto para buscar dispositivos pareados.",
                 )
             }
         } catch (exception: SecurityException) {
@@ -40,11 +40,59 @@ class LabLinkBluetoothService {
         }
     }
 
+    fun loadPairedDevices(context: Context): BluetoothUiState {
+        val initialState = evaluateInitialState(context)
+
+        if (initialState.status != BluetoothConnectionStatus.Ready) {
+            return initialState
+        }
+
+        return try {
+            val bluetoothManager = context.getSystemService(BluetoothManager::class.java)
+            val bluetoothAdapter = bluetoothManager?.adapter
+
+            if (bluetoothAdapter == null) {
+                BluetoothUiState(
+                    status = BluetoothConnectionStatus.BluetoothUnavailable,
+                    message = "Este dispositivo não possui Bluetooth disponível.",
+                )
+            } else {
+                val devices = bluetoothAdapter.bondedDevices
+                    .map { device ->
+                        BluetoothDeviceInfo(
+                            name = device.name ?: "Dispositivo sem nome",
+                            address = device.address ?: "Endereço indisponível",
+                        )
+                    }
+                    .sortedBy { device -> device.name.lowercase() }
+
+                if (devices.isEmpty()) {
+                    BluetoothUiState(
+                        status = BluetoothConnectionStatus.Ready,
+                        pairedDevices = emptyList(),
+                        message = "Nenhum dispositivo Bluetooth pareado encontrado. Pareie o HC-05/HC-06 nas configurações do Android.",
+                    )
+                } else {
+                    BluetoothUiState(
+                        status = BluetoothConnectionStatus.Ready,
+                        pairedDevices = devices,
+                        message = "Dispositivos pareados encontrados: ${devices.size}.",
+                    )
+                }
+            }
+        } catch (exception: SecurityException) {
+            BluetoothUiState(
+                status = BluetoothConnectionStatus.PermissionRequired,
+                message = "Permissão Bluetooth necessária para listar dispositivos pareados.",
+            )
+        }
+    }
+
     fun getDevelopmentNotes(): List<String> {
         return listOf(
             "Permissões Bluetooth adicionadas ao AndroidManifest.xml.",
-            "Solicitação de permissões em runtime preparada.",
-            "Listagem de dispositivos pareados ainda não implementada.",
+            "Solicitação de permissões em runtime validada.",
+            "Listagem de dispositivos pareados preparada.",
             "Conexão real com HC-05/HC-06 ainda não implementada.",
         )
     }

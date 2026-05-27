@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -21,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothConnectionStatus
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothUiState
 import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
 
@@ -30,6 +33,7 @@ fun ConnectionScreen(
     developmentNotes: List<String>,
     onRequestPermissions: () -> Unit,
     onRefresh: () -> Unit,
+    onLoadPairedDevices: () -> Unit,
     onBack: () -> Unit,
 ) {
     Surface(
@@ -39,6 +43,7 @@ fun ConnectionScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
@@ -51,51 +56,15 @@ fun ConnectionScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Status",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+            StatusCard(bluetoothState = bluetoothState)
 
-                    Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(text = bluetoothState.status.toDisplayText())
+            PairedDevicesCard(devices = bluetoothState.pairedDevices)
 
-                    Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(text = bluetoothState.message)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Preparação técnica",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    developmentNotes.forEach { note ->
-                        Text(text = "• $note")
-                    }
-                }
-            }
+            DevelopmentNotesCard(developmentNotes = developmentNotes)
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -105,6 +74,16 @@ fun ConnectionScreen(
                 enabled = bluetoothState.status == BluetoothConnectionStatus.PermissionRequired,
             ) {
                 Text(text = "Solicitar permissões Bluetooth")
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = onLoadPairedDevices,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = bluetoothState.status == BluetoothConnectionStatus.Ready,
+            ) {
+                Text(text = "Buscar dispositivos pareados")
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -123,6 +102,93 @@ fun ConnectionScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(text = "Voltar")
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusCard(bluetoothState: BluetoothUiState) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Status",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(text = bluetoothState.status.toDisplayText())
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(text = bluetoothState.message)
+        }
+    }
+}
+
+@Composable
+private fun PairedDevicesCard(devices: List<BluetoothDeviceInfo>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Dispositivos pareados",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (devices.isEmpty()) {
+                Text(text = "Nenhum dispositivo listado ainda.")
+            } else {
+                devices.forEach { device ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = device.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = device.address,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DevelopmentNotesCard(developmentNotes: List<String>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Preparação técnica",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            developmentNotes.forEach { note ->
+                Text(text = "• $note")
             }
         }
     }
@@ -148,15 +214,22 @@ private fun ConnectionScreenPreview() {
     LabLinkTheme {
         ConnectionScreen(
             bluetoothState = BluetoothUiState(
-                status = BluetoothConnectionStatus.PermissionRequired,
-                message = "Permissões Bluetooth necessárias para continuar.",
+                status = BluetoothConnectionStatus.Ready,
+                message = "Dispositivos pareados encontrados: 1.",
+                pairedDevices = listOf(
+                    BluetoothDeviceInfo(
+                        name = "HC-05",
+                        address = "00:11:22:33:44:55",
+                    ),
+                ),
             ),
             developmentNotes = listOf(
                 "Permissões Bluetooth adicionadas ao AndroidManifest.xml.",
-                "Solicitação de permissões em runtime preparada.",
+                "Listagem de dispositivos pareados preparada.",
             ),
             onRequestPermissions = {},
             onRefresh = {},
+            onLoadPairedDevices = {},
             onBack = {},
         )
     }

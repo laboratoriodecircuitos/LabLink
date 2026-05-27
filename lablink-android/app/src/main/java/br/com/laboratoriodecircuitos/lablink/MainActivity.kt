@@ -12,7 +12,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPermissionHelper
-import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothUiState
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothService
 import br.com.laboratoriodecircuitos.lablink.features.connection.ConnectionScreen
 import br.com.laboratoriodecircuitos.lablink.features.controls.ControlsScreen
@@ -59,6 +58,10 @@ private fun LabLinkApp() {
         bluetoothState = bluetoothService.evaluateInitialState(context)
     }
 
+    fun loadPairedDevices() {
+        bluetoothState = bluetoothService.loadPairedDevices(context)
+    }
+
     when (currentScreen) {
         LabLinkScreen.Home -> LabLinkHomeScreen(
             onOpenConnection = {
@@ -77,6 +80,9 @@ private fun LabLinkApp() {
             },
             onRefresh = {
                 refreshBluetoothState()
+            },
+            onLoadPairedDevices = {
+                loadPairedDevices()
             },
             onBack = { currentScreen = LabLinkScreen.Home },
         )
