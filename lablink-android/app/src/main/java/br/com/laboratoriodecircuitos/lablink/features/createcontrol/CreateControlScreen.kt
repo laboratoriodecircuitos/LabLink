@@ -59,8 +59,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.com.laboratoriodecircuitos.lablink.core.boards.BoardPinValidator
 import br.com.laboratoriodecircuitos.lablink.core.boards.BoardProfile
 import br.com.laboratoriodecircuitos.lablink.core.boards.BoardProfiles
+import br.com.laboratoriodecircuitos.lablink.core.boards.PinValidationResult
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlType
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkDrawer
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkTopAppBar
@@ -71,6 +73,7 @@ private val CardDark = Color(0xFF151515)
 private val AccentYellow = Color(0xFFFFE382)
 private val AccentPurple = Color(0xFFE5BEFF)
 private val AccentGreen = Color(0xFFC4FA8C)
+private val AccentDanger = Color(0xFFFF8A8A)
 private val TextDim = Color(0xFF8A8A8A)
 private val WhiteSoft = Color(0xFFFFFFFF)
 private val BorderSoft = Color.White.copy(alpha = 0.06f)
@@ -107,8 +110,31 @@ fun CreateControlScreen(
 
     fun updatePin(index: Int, value: String) {
         controlPins = controlPins.toMutableList().also {
-            it[index] = value.trim().take(4)
+            it[index] = value.trim().uppercase().take(4)
         }
+    }
+
+    fun validatePinAt(index: Int): PinValidationResult {
+        val board = selectedBoard ?: BoardProfiles.defaultBoard
+        val type = selectedType ?: ControlType.DigitalToggle
+
+        val usedPins = controlPins
+            .take(quantity)
+            .mapIndexedNotNull { pinIndex, pin ->
+                if (pinIndex != index && pin.isNotBlank()) {
+                    BoardPinValidator.normalizePin(pin)
+                } else {
+                    null
+                }
+            }
+            .toSet()
+
+        return BoardPinValidator.validatePinForControl(
+            board = board,
+            controlType = type,
+            pin = controlPins[index],
+            usedPins = usedPins,
+        )
     }
 
     Surface(
@@ -184,7 +210,10 @@ fun CreateControlScreen(
                                 ControlTypeCard(
                                     type = type,
                                     selected = selectedType == type,
-                                    onClick = { selectedType = type },
+                                    onClick = {
+                                        selectedType = type
+                                        controlPins = List(8) { "" }
+                                    },
                                 )
                             }
 
@@ -257,7 +286,11 @@ fun CreateControlScreen(
 
                         CreateControlStep.ConfigureControls -> {
                             val type = selectedType
-                            val allPinsFilled = controlPins.take(quantity).all { it.isNotBlank() }
+                            val validationResults = (0 until quantity).map { index ->
+                                validatePinAt(index)
+                            }
+
+                            val allPinsValid = validationResults.all { it == PinValidationResult.Valid }
 
                             HeaderSection(
                                 title = "Configure os controles",
@@ -285,21 +318,22 @@ fun CreateControlScreen(
                                     name = controlNames[index],
                                     pin = controlPins[index],
                                     type = type,
+                                    validationResult = validationResults[index],
                                     onNameChange = { updateName(index, it) },
                                     onPinChange = { updatePin(index, it) },
                                 )
                             }
 
                             ContinueCard(
-                                enabled = allPinsFilled,
-                                title = if (allPinsFilled) "Salvar controles" else "Informe todos os pinos",
-                                description = if (allPinsFilled) {
-                                    "Na próxima etapa, o LabLink vai validar os pinos e mostrar esses controles na tela principal."
+                                enabled = allPinsValid,
+                                title = if (allPinsValid) "Salvar controles" else "Corrija os pinos",
+                                description = if (allPinsValid) {
+                                    "Todos os pinos são válidos para a placa e o tipo de controle escolhido."
                                 } else {
-                                    "Cada controle precisa ter um pino definido antes de continuar."
+                                    "O LabLink bloqueia pinos repetidos, inexistentes ou incompatíveis com este controle."
                                 },
                                 onClick = {
-                                    // Próxima etapa: validar pinos conforme a placa e salvar controles.
+                                    // Próxima etapa: salvar controles em memória/local.
                                 },
                             )
                         }
@@ -755,6 +789,7 @@ private fun ControlConfigCard(
     name: String,
     pin: String,
     type: ControlType?,
+    validationResult: PinValidationResult,
     onNameChange: (String) -> Unit,
     onPinChange: (String) -> Unit,
 ) {
@@ -767,13 +802,21 @@ private fun ControlConfigCard(
         null -> "Controle ${index + 1}"
     }
 
+    val isValid = validationResult == PinValidationResult.Valid
+    val hasValue = pin.isNotBlank()
+    val validationMessage = BoardPinValidator.validationMessage(validationResult)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(CardDark, RoundedCornerShape(24.dp))
             .border(
                 width = 1.dp,
-                color = if (pin.isNotBlank()) AccentGreen.copy(alpha = 0.45f) else BorderSoft,
+                color = when {
+                    isValid -> AccentGreen.copy(alpha = 0.45f)
+                    hasValue -> AccentDanger.copy(alpha = 0.55f)
+                    else -> BorderSoft
+                },
                 shape = RoundedCornerShape(24.dp),
             )
             .padding(18.dp),
@@ -800,11 +843,18 @@ private fun ControlConfigCard(
             value = pin,
             placeholder = when (type) {
                 ControlType.AnalogRead -> "A0"
+                ControlType.PwmSlider -> "3"
                 else -> "13"
             },
             keyboardType = KeyboardType.Text,
             monospace = true,
             onValueChange = onPinChange,
+            supportingText = when {
+                validationMessage != null -> validationMessage
+                isValid -> "${BoardPinValidator.normalizePin(pin)} disponível para este controle."
+                else -> null
+            },
+            supportingColor = if (isValid) AccentGreen else AccentDanger,
         )
     }
 }
@@ -817,6 +867,8 @@ private fun LabTextField(
     keyboardType: KeyboardType,
     onValueChange: (String) -> Unit,
     monospace: Boolean = false,
+    supportingText: String? = null,
+    supportingColor: Color = TextDim,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -869,6 +921,15 @@ private fun LabTextField(
                 }
             },
         )
+
+        if (supportingText != null) {
+            Text(
+                text = supportingText,
+                color = supportingColor,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+            )
+        }
     }
 }
 
