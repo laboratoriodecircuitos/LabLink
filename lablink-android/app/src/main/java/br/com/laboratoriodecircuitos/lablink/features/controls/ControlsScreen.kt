@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,6 +76,7 @@ private val BorderSoft = Color.White.copy(alpha = 0.06f)
 fun ControlsScreen(
     bluetoothState: BluetoothUiState,
     controls: List<LabLinkControl> = listOf(DefaultControls.pin13DigitalOutput),
+    controlsRefreshKey: Int = 0,
     onSendPing: () -> Unit,
     onToggleDigitalControl: (LabLinkControl, Boolean) -> Unit = { _, _ -> },
     onTurnLedOn: () -> Unit,
@@ -84,28 +86,40 @@ fun ControlsScreen(
     onOpenTerminal: () -> Unit,
     onOpenControls: () -> Unit,
     onCreateControl: () -> Unit = {},
+    onClearControls: () -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     var drawerOpen by remember { mutableStateOf(false) }
 
+    val displayedControls = remember {
+        mutableStateListOf<LabLinkControl>().apply {
+            addAll(controls)
+        }
+    }
+
     val isConnected = bluetoothState.status == BluetoothConnectionStatus.Connected
+    val hasCustomControls = displayedControls.any { it.id != DefaultControls.pin13DigitalOutput.id } ||
+        displayedControls.size != 1
     val digitalStates = remember { mutableStateMapOf<String, Boolean>() }
 
-    LaunchedEffect(controls) {
-        controls.forEach { control ->
-            if (control.id !in digitalStates) {
-                digitalStates[control.id] = control.isOn
-            }
+    LaunchedEffect(controlsRefreshKey, controls) {
+        displayedControls.clear()
+        displayedControls.addAll(controls)
+
+        digitalStates.clear()
+
+        displayedControls.forEach { control ->
+            digitalStates[control.id] = control.isOn
         }
     }
 
     LaunchedEffect(bluetoothState.lastReceivedMessage) {
         when (bluetoothState.lastReceivedMessage) {
-            "OK:LED_ON" -> controls
+            "OK:LED_ON" -> displayedControls
                 .filter { it.type == ControlType.DigitalToggle && it.pin == "13" }
                 .forEach { digitalStates[it.id] = true }
 
-            "OK:LED_OFF" -> controls
+            "OK:LED_OFF" -> displayedControls
                 .filter { it.type == ControlType.DigitalToggle && it.pin == "13" }
                 .forEach { digitalStates[it.id] = false }
         }
@@ -134,13 +148,13 @@ fun ControlsScreen(
                 ) {
                     HeaderSection(
                         isConnected = isConnected,
-                        hasCustomControls = controls.isNotEmpty(),
+                        hasCustomControls = hasCustomControls,
                     )
 
-                    if (controls.isEmpty()) {
+                    if (displayedControls.isEmpty()) {
                         EmptyControlsCard(onCreateControl = onCreateControl)
                     } else {
-                        controls.forEach { control ->
+                        displayedControls.forEach { control ->
                             when (control.type) {
                                 ControlType.DigitalToggle -> {
                                     DigitalOutputControlCard(
@@ -173,6 +187,20 @@ fun ControlsScreen(
                     }
 
                     CreateControlCard(onCreateControl = onCreateControl)
+
+                    if (hasCustomControls) {
+                        ResetControlsCard(
+                            onClearControls = {
+                                displayedControls.clear()
+                                displayedControls.add(DefaultControls.pin13DigitalOutput.copy(isOn = false))
+
+                                digitalStates.clear()
+                                digitalStates[DefaultControls.pin13DigitalOutput.id] = false
+
+                                onClearControls()
+                            },
+                        )
+                    }
                 }
             }
 
@@ -554,6 +582,47 @@ private fun CreateControlCard(onCreateControl: () -> Unit) {
     }
 }
 
+@Composable
+private fun ResetControlsCard(onClearControls: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CardDark, RoundedCornerShape(22.dp))
+            .border(1.dp, BorderSoft, RoundedCornerShape(22.dp))
+            .clickable { onClearControls() }
+            .padding(18.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Tune,
+                contentDescription = null,
+                tint = TextDim,
+                modifier = Modifier.size(18.dp),
+            )
+
+            Text(
+                text = "Redefinir controles",
+                color = WhiteSoft,
+                fontSize = 15.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Limpa os controles criados e volta para o controle padrão do Pino 13.",
+            color = TextDim,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+        )
+    }
+}
+
 private fun ControlType.icon(): ImageVector {
     return when (this) {
         ControlType.DigitalToggle -> Icons.Rounded.PowerSettingsNew
@@ -588,6 +657,7 @@ private fun ControlsScreenPreview() {
                 lastReceivedMessage = "OK:LED_ON",
             ),
             controls = listOf(DefaultControls.pin13DigitalOutput),
+            controlsRefreshKey = 0,
             onSendPing = {},
             onToggleDigitalControl = { _, _ -> },
             onTurnLedOn = {},
@@ -597,7 +667,11 @@ private fun ControlsScreenPreview() {
             onOpenTerminal = {},
             onOpenControls = {},
             onCreateControl = {},
+            onClearControls = {},
         )
     }
 }
+
+
+
 

@@ -9,6 +9,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -61,6 +63,10 @@ private fun LabLinkApp() {
 
     var configuredControls by remember {
         mutableStateOf(ControlStorage.loadControls(context))
+    }
+
+    var controlsRefreshKey by remember {
+        mutableIntStateOf(0)
     }
 
     val isBluetoothConnectedForUi =
@@ -189,16 +195,19 @@ private fun LabLinkApp() {
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
             onOpenControls = { currentScreen = LabLinkScreen.Controls },
             onSaveControls = { controls ->
-                configuredControls = controls
+                configuredControls = controls.toList()
+                controlsRefreshKey++
                 ControlStorage.saveControls(context, controls)
                 currentScreen = LabLinkScreen.Controls
             },
         )
 
-        LabLinkScreen.Controls -> ControlsScreen(
-            bluetoothState = bluetoothState,
-            controls = configuredControls,
-            onSendPing = { sendCommand("PING") },
+        LabLinkScreen.Controls -> key(controlsRefreshKey) {
+            ControlsScreen(
+                bluetoothState = bluetoothState,
+                controls = configuredControls,
+                controlsRefreshKey = controlsRefreshKey,
+                onSendPing = { sendCommand("PING") },
             onToggleDigitalControl = { control, turnOn ->
                 sendCommand(
                     ControlCommandMapper.digitalToggleCommand(
@@ -234,12 +243,5 @@ private fun LabLinkApp() {
         )
     }
 }
-
-
-
-
-
-
-
-
+}
 
