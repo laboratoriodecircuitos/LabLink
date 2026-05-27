@@ -88,10 +88,11 @@ fun LabLinkTopAppBar(
                 Icon(
                     imageVector = Icons.Rounded.Bluetooth,
                     contentDescription = null,
-                    tint = if (isBluetoothConnected) WhiteSoft else TextDim,
+                    tint = if (isBluetoothConnected) BgDeep else TextDim,
                     modifier = Modifier.size(23.dp),
                 )
             }
         }
     }
 }
+
