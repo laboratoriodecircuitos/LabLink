@@ -302,7 +302,7 @@ private fun SelectedDeviceCard(selectedDevice: BluetoothDeviceInfo?) {
     Column {
         SectionHeader(
             icon = Icons.Rounded.Devices,
-            title = "Dispositivo selecionado",
+            title = "DISPOSITIVO SELECIONADO",
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -310,57 +310,64 @@ private fun SelectedDeviceCard(selectedDevice: BluetoothDeviceInfo?) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(CardDark, RoundedCornerShape(20.dp))
-                .padding(16.dp),
+                .background(CardDark, RoundedCornerShape(18.dp))
+                .border(1.dp, Color(0xFF2BCBFF).copy(alpha = 0.8f), RoundedCornerShape(18.dp))
+                .padding(14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(
+            Row(
                 modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.SettingsInputComponent,
                         contentDescription = null,
-                        tint = if (selectedDevice != null) AccentGreen else TextDim,
-                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFF2BCBFF),
+                        modifier = Modifier.size(20.dp),
                     )
+                }
 
+                Column {
                     Text(
                         text = selectedDevice?.name ?: "Nenhum dispositivo",
                         color = WhiteSoft,
                         fontSize = 16.sp,
                         lineHeight = 22.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = selectedDevice?.address ?: "Selecione um módulo pareado abaixo",
+                        color = TextDim,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        fontFamily = if (selectedDevice != null) FontFamily.Monospace else FontFamily.Default,
                     )
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = selectedDevice?.address ?: "Selecione um módulo pareado abaixo",
-                    color = TextDim,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                    fontFamily = if (selectedDevice != null) FontFamily.Monospace else FontFamily.Default,
-                )
             }
 
             if (selectedDevice != null) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
-                        .background(AccentGreen.copy(alpha = 0.16f), CircleShape),
+                        .size(28.dp)
+                        .background(AccentGreen, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Check,
                         contentDescription = null,
-                        tint = AccentGreen,
-                        modifier = Modifier.size(18.dp),
+                        tint = Color.Black,
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
@@ -377,7 +384,7 @@ private fun PairedDevicesSection(
     Column {
         SectionHeader(
             icon = Icons.Rounded.BluetoothSearching,
-            title = "Dispositivos pareados",
+            title = "DISPOSITIVOS PAREADOS",
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -439,54 +446,65 @@ private fun DeviceListItem(
             .fillMaxWidth()
             .background(
                 color = if (selected) AccentYellow else CardDark,
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(16.dp),
             )
             .then(
                 if (selected) {
                     Modifier
                 } else {
-                    Modifier.border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
+                    Modifier.border(1.dp, BorderSoft, RoundedCornerShape(16.dp))
                 }
             )
             .clickable { onClick() }
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(
+        Row(
             modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = device.name,
-                color = if (selected) Color.Black else WhiteSoft,
-                fontSize = 16.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.SemiBold,
+            Icon(
+                imageVector = if (selected) Icons.Rounded.Bluetooth else Icons.Rounded.BluetoothConnected,
+                contentDescription = null,
+                tint = if (selected) Color.Black else TextDim,
+                modifier = Modifier.size(18.dp),
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Column {
+                Text(
+                    text = device.name,
+                    color = if (selected) Color.Black else WhiteSoft,
+                    fontSize = 15.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
 
-            Text(
-                text = device.address,
-                color = if (selected) Color.Black.copy(alpha = 0.60f) else TextDim,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                fontFamily = FontFamily.Monospace,
-            )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = device.address,
+                    color = if (selected) Color.Black.copy(alpha = 0.60f) else TextDim,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
         }
 
         if (selected) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
-                    .background(Color.Black.copy(alpha = 0.10f), CircleShape),
+                    .size(24.dp)
+                    .background(Color.Black, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Check,
                     contentDescription = null,
-                    tint = Color.Black,
-                    modifier = Modifier.size(18.dp),
+                    tint = AccentYellow,
+                    modifier = Modifier.size(14.dp),
                 )
             }
         }
@@ -505,7 +523,7 @@ private fun ActionsGrid(
     Column {
         SectionHeader(
             icon = Icons.Rounded.Tune,
-            title = "Ações",
+            title = "AÇÕES",
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -513,51 +531,55 @@ private fun ActionsGrid(
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ActionCard(
-                title = "Permissões Bluetooth",
-                subtitle = "Solicitar acesso quando necessário",
-                icon = Icons.Rounded.Security,
-                backgroundColor = CardDark,
-                contentColor = WhiteSoft,
-                iconBackground = Color.White.copy(alpha = 0.05f),
-                enabled = bluetoothState.status == BluetoothConnectionStatus.PermissionRequired,
-                onClick = onRequestPermissions,
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                MiniActionCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Permissões`nBluetooth",
+                    icon = Icons.Rounded.Security,
+                    backgroundColor = CardDark,
+                    contentColor = WhiteSoft,
+                    enabled = bluetoothState.status == BluetoothConnectionStatus.PermissionRequired,
+                    onClick = onRequestPermissions,
+                )
 
-            ActionCard(
-                title = "Buscar pareados",
-                subtitle = "Carregar módulos HC-05 ou HC-06",
-                icon = Icons.Rounded.BluetoothSearching,
-                backgroundColor = AccentPurple,
-                contentColor = Color.Black,
-                iconBackground = Color.Black.copy(alpha = 0.10f),
-                enabled = bluetoothState.status == BluetoothConnectionStatus.Ready,
-                onClick = onLoadPairedDevices,
-            )
+                MiniActionCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Buscar`npareados",
+                    icon = Icons.Rounded.BluetoothSearching,
+                    backgroundColor = AccentPurple,
+                    contentColor = Color.Black,
+                    enabled = bluetoothState.status == BluetoothConnectionStatus.Ready || bluetoothState.status == BluetoothConnectionStatus.Connected,
+                    onClick = onLoadPairedDevices,
+                )
+            }
 
-            ActionCard(
-                title = "Conectar",
-                subtitle = "Abrir comunicação Bluetooth serial",
-                icon = Icons.Rounded.Link,
-                backgroundColor = AccentYellow,
-                contentColor = Color.Black,
-                iconBackground = Color.Black.copy(alpha = 0.10f),
-                enabled = bluetoothState.selectedDevice != null &&
-                    bluetoothState.status != BluetoothConnectionStatus.Connecting &&
-                    bluetoothState.status != BluetoothConnectionStatus.Connected,
-                onClick = onConnectSelectedDevice,
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                MiniActionCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Conectar",
+                    icon = Icons.Rounded.Link,
+                    backgroundColor = AccentYellow,
+                    contentColor = Color.Black,
+                    enabled = bluetoothState.selectedDevice != null &&
+                        bluetoothState.status != BluetoothConnectionStatus.Connecting &&
+                        bluetoothState.status != BluetoothConnectionStatus.Connected,
+                    onClick = onConnectSelectedDevice,
+                )
 
-            ActionCard(
-                title = "Ir para Controles",
-                subtitle = "Enviar PING, LED ON e LED OFF",
-                icon = Icons.Rounded.Tune,
-                backgroundColor = AccentGreen,
-                contentColor = Color.Black,
-                iconBackground = Color.Black.copy(alpha = 0.10f),
-                enabled = bluetoothState.status == BluetoothConnectionStatus.Connected,
-                onClick = onOpenControls,
-            )
+                MiniActionCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Ir para`nControles",
+                    icon = Icons.Rounded.Tune,
+                    backgroundColor = AccentGreen,
+                    contentColor = Color.Black,
+                    enabled = bluetoothState.status == BluetoothConnectionStatus.Connected,
+                    onClick = onOpenControls,
+                )
+            }
 
             ActionCard(
                 title = "Atualizar status",
@@ -573,6 +595,49 @@ private fun ActionsGrid(
     }
 }
 
+
+@Composable
+private fun MiniActionCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    icon: ImageVector,
+    backgroundColor: Color,
+    contentColor: Color,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .height(92.dp)
+            .alpha(if (enabled) 1f else 0.45f)
+            .background(backgroundColor, RoundedCornerShape(16.dp))
+            .then(
+                if (backgroundColor == CardDark) {
+                    Modifier.border(1.dp, BorderSoft, RoundedCornerShape(16.dp))
+                } else {
+                    Modifier
+                }
+            )
+            .clickable(enabled = enabled) { onClick() }
+            .padding(14.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(18.dp),
+        )
+
+        Text(
+            text = title,
+            color = contentColor,
+            fontSize = 14.sp,
+            lineHeight = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
 @Composable
 private fun ActionCard(
     title: String,
@@ -643,11 +708,11 @@ private fun ActionCard(
 @Composable
 private fun TechnicalNotesCard(developmentNotes: List<String>) {
     Column(
-        modifier = Modifier.alpha(0.50f),
+        modifier = Modifier.alpha(0.78f),
     ) {
         SectionHeader(
             icon = Icons.Rounded.Tune,
-            title = "Preparação técnica",
+            title = "LOGS TÉCNICOS",
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -655,17 +720,18 @@ private fun TechnicalNotesCard(developmentNotes: List<String>) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(CardDark, RoundedCornerShape(20.dp))
-                .border(1.dp, BorderSoft, RoundedCornerShape(20.dp))
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .background(CardDark, RoundedCornerShape(16.dp))
+                .border(1.dp, BorderSoft, RoundedCornerShape(16.dp))
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             developmentNotes.forEach { note ->
                 Text(
-                    text = "• $note",
-                    color = TextDim,
+                    text = "> $note",
+                    color = AccentGreen,
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
+                    fontFamily = FontFamily.Monospace,
                 )
             }
         }
@@ -841,4 +907,5 @@ private fun ConnectionScreenPreview() {
         )
     }
 }
+
 
