@@ -58,11 +58,24 @@ fun ControlsScreen(
                 fontWeight = FontWeight.Bold
             )
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Envie comandos para o Arduino pelo Bluetooth",
+                style = MaterialTheme.typography.bodyLarge
+            )
+
             Spacer(modifier = Modifier.height(24.dp))
 
             ConnectionSummaryCard(bluetoothState = bluetoothState)
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            if (!isConnected) {
+                NotConnectedCard(onOpenConnection = onOpenConnection)
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             LastResponseCard(lastReceivedMessage = bluetoothState.lastReceivedMessage)
 
@@ -80,6 +93,10 @@ fun ControlsScreen(
                 onTurnLedOn = onTurnLedOn,
                 onTurnLedOff = onTurnLedOff,
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            UpcomingControlsCard()
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -121,7 +138,11 @@ private fun ConnectionSummaryCard(bluetoothState: BluetoothUiState) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(text = bluetoothState.status.toDisplayText())
+            Text(
+                text = bluetoothState.status.toDisplayText(),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -142,6 +163,37 @@ private fun ConnectionSummaryCard(bluetoothState: BluetoothUiState) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(text = bluetoothState.message)
+        }
+    }
+}
+
+@Composable
+private fun NotConnectedCard(onOpenConnection: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Nenhum módulo conectado",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(text = "Conecte primeiro ao HC-05 ou HC-06 para liberar os comandos desta tela.")
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = onOpenConnection,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(text = "Conectar Bluetooth")
+            }
         }
     }
 }
@@ -196,7 +248,7 @@ private fun PingControlCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(text = "Envia PING e espera a resposta OK:PONG do Arduino.")
+            Text(text = "Use este botão para confirmar que o Arduino responde ao app.")
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -232,7 +284,7 @@ private fun LedControlCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(text = "Controla o LED 13 do Arduino usando os comandos LED:ON e LED:OFF.")
+            Text(text = "Controla o LED 13 do Arduino usando LED:ON e LED:OFF.")
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -255,6 +307,30 @@ private fun LedControlCard(
                     Text(text = "Desligar LED")
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun UpcomingControlsCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Próximos controles",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(text = "• PWM por slider")
+            Text(text = "• Servo motor")
+            Text(text = "• Motores com direção")
         }
     }
 }
