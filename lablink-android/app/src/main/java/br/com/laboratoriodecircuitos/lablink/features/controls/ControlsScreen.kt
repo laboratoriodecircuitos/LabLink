@@ -75,6 +75,7 @@ fun ControlsScreen(
     onOpenConnection: () -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenControls: () -> Unit,
+    onCreateControl: () -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     var drawerOpen by remember { mutableStateOf(false) }
@@ -138,7 +139,7 @@ fun ControlsScreen(
                         )
                     }
 
-                    FutureControlsCard()
+                    FutureControlsCard(onCreateControl = onCreateControl)
                 }
             }
 
@@ -378,13 +379,13 @@ private fun NotConnectedCard(
 }
 
 @Composable
-private fun FutureControlsCard() {
+private fun FutureControlsCard(onCreateControl: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(0.52f)
             .background(CardDark, RoundedCornerShape(22.dp))
             .border(1.dp, BorderSoft, RoundedCornerShape(22.dp))
+            .clickable { onCreateControl() }
             .padding(18.dp),
     ) {
         Row(
@@ -399,7 +400,7 @@ private fun FutureControlsCard() {
             )
 
             Text(
-                text = "Novos controles em breve",
+                text = "Criar novo controle",
                 color = WhiteSoft,
                 fontSize = 15.sp,
                 lineHeight = 20.sp,
@@ -410,7 +411,7 @@ private fun FutureControlsCard() {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "PWM, servo, motor, buzzer e sensores poderão aparecer aqui nas próximas etapas.",
+            text = "Escolha o tipo de controle, quantidade e pinos usados no seu projeto.",
             color = TextDim,
             fontSize = 13.sp,
             lineHeight = 18.sp,
@@ -438,7 +439,9 @@ private fun ControlsScreenPreview() {
             onOpenConnection = {},
             onOpenTerminal = {},
             onOpenControls = {},
+            onCreateControl = {},
         )
     }
 }
+
 

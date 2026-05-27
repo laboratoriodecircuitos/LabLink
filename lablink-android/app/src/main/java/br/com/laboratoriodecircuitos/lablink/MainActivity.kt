@@ -21,6 +21,7 @@ import br.com.laboratoriodecircuitos.lablink.core.controls.ControlCommandMapper
 import br.com.laboratoriodecircuitos.lablink.core.controls.DefaultControls
 import br.com.laboratoriodecircuitos.lablink.features.connection.ConnectionScreen
 import br.com.laboratoriodecircuitos.lablink.features.controls.ControlsScreen
+import br.com.laboratoriodecircuitos.lablink.features.createcontrol.CreateControlScreen
 import br.com.laboratoriodecircuitos.lablink.features.home.LabLinkHomeScreen
 import br.com.laboratoriodecircuitos.lablink.features.terminal.TerminalScreen
 import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
@@ -42,6 +43,7 @@ private enum class LabLinkScreen {
     Connection,
     Terminal,
     Controls,
+    CreateControl,
 }
 
 @Composable
@@ -171,6 +173,17 @@ private fun LabLinkApp() {
             onOpenControls = { currentScreen = LabLinkScreen.Controls },
         )
 
+        LabLinkScreen.CreateControl -> CreateControlScreen(
+            isBluetoothConnected = isBluetoothConnectedForUi,
+            onOpenHome = { currentScreen = LabLinkScreen.Home },
+            onOpenConnection = {
+                refreshBluetoothState()
+                currentScreen = LabLinkScreen.Connection
+            },
+            onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
+            onOpenControls = { currentScreen = LabLinkScreen.Controls },
+        )
+
         LabLinkScreen.Controls -> ControlsScreen(
             bluetoothState = bluetoothState,
             onSendPing = { sendCommand("PING") },
@@ -197,9 +210,13 @@ private fun LabLinkApp() {
             },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
             onOpenControls = { currentScreen = LabLinkScreen.Controls },
+            onCreateControl = { currentScreen = LabLinkScreen.CreateControl },
         )
     }
 }
+
+
+
 
 
 
