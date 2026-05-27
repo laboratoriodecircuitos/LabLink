@@ -24,11 +24,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.PowerSettingsNew
-import androidx.compose.material.icons.rounded.RadioButtonChecked
+import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
@@ -36,6 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -62,6 +65,11 @@ private val TextDim = Color(0xFF8A8A8A)
 private val WhiteSoft = Color(0xFFFFFFFF)
 private val BorderSoft = Color.White.copy(alpha = 0.06f)
 
+private enum class CreateControlStep {
+    ChooseType,
+    ChooseQuantity,
+}
+
 @Composable
 fun CreateControlScreen(
     isBluetoothConnected: Boolean,
@@ -72,7 +80,9 @@ fun CreateControlScreen(
 ) {
     val scrollState = rememberScrollState()
     var drawerOpen by remember { mutableStateOf(false) }
+    var currentStep by remember { mutableStateOf(CreateControlStep.ChooseType) }
     var selectedType by remember { mutableStateOf<ControlType?>(null) }
+    var quantity by remember { mutableIntStateOf(1) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -95,17 +105,80 @@ fun CreateControlScreen(
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
-                    HeaderSection()
+                    when (currentStep) {
+                        CreateControlStep.ChooseType -> {
+                            HeaderSection(
+                                title = "Que controle você quer criar?",
+                                description = "Escolha o tipo de controle que será usado no seu projeto Arduino.",
+                            )
 
-                    ControlType.values().forEach { type ->
-                        ControlTypeCard(
-                            type = type,
-                            selected = selectedType == type,
-                            onClick = { selectedType = type },
-                        )
+                            ControlType.values().forEach { type ->
+                                ControlTypeCard(
+                                    type = type,
+                                    selected = selectedType == type,
+                                    onClick = { selectedType = type },
+                                )
+                            }
+
+                            ContinueCard(
+                                enabled = selectedType != null,
+                                title = if (selectedType == null) {
+                                    "Selecione um tipo para continuar"
+                                } else {
+                                    "Continuar"
+                                },
+                                description = if (selectedType == null) {
+                                    "Depois disso, o LabLink vai perguntar a quantidade de controles e os pinos usados."
+                                } else {
+                                    "Definir quantos controles ${selectedType?.displayName} serão criados."
+                                },
+                                onClick = {
+                                    if (selectedType != null) {
+                                        currentStep = CreateControlStep.ChooseQuantity
+                                    }
+                                },
+                            )
+                        }
+
+                        CreateControlStep.ChooseQuantity -> {
+                            val type = selectedType
+
+                            HeaderSection(
+                                title = "Quantos controles?",
+                                description = if (type == null) {
+                                    "Defina a quantidade de controles que deseja criar."
+                                } else {
+                                    "Escolha quantos controles ${type.displayName} você quer adicionar ao projeto."
+                                },
+                            )
+
+                            SelectedTypeSummary(
+                                type = type,
+                                onBack = {
+                                    currentStep = CreateControlStep.ChooseType
+                                },
+                            )
+
+                            QuantitySelector(
+                                quantity = quantity,
+                                onDecrease = {
+                                    if (quantity > 1) quantity--
+                                },
+                                onIncrease = {
+                                    if (quantity < 8) quantity++
+                                },
+                            )
+
+                            ContinueCard(
+                                enabled = true,
+                                title = "Continuar",
+                                description = "Na próxima etapa, vamos configurar nome e pino de cada controle.",
+                                onClick = {
+                                    // Próxima etapa: configuração de pinos.
+                                },
+                            )
+                        }
                     }
-
-                    NextStepCard(selectedType = selectedType)
                 }
             }
 
@@ -151,14 +224,17 @@ fun CreateControlScreen(
 }
 
 @Composable
-private fun HeaderSection() {
+private fun HeaderSection(
+    title: String,
+    description: String,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp, bottom = 4.dp),
     ) {
         Text(
-            text = "Que controle você quer criar?",
+            text = title,
             color = WhiteSoft,
             fontSize = 28.sp,
             lineHeight = 34.sp,
@@ -169,7 +245,7 @@ private fun HeaderSection() {
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "Escolha o tipo de controle que será usado no seu projeto Arduino.",
+            text = description,
             color = WhiteSoft.copy(alpha = 0.78f),
             fontSize = 16.sp,
             lineHeight = 24.sp,
@@ -183,13 +259,7 @@ private fun ControlTypeCard(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val accent = when (type) {
-        ControlType.DigitalToggle -> AccentYellow
-        ControlType.PwmSlider -> AccentPurple
-        ControlType.ServoSlider -> AccentGreen
-        ControlType.PulseButton -> AccentYellow
-        ControlType.AnalogRead -> AccentPurple
-    }
+    val accent = type.accentColor()
 
     Row(
         modifier = Modifier
@@ -258,39 +328,223 @@ private fun ControlTypeCard(
 }
 
 @Composable
-private fun NextStepCard(selectedType: ControlType?) {
-    Column(
+private fun SelectedTypeSummary(
+    type: ControlType?,
+    onBack: () -> Unit,
+) {
+    if (type == null) return
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (selectedType == null) 0.52f else 1f)
             .background(CardDark, RoundedCornerShape(22.dp))
             .border(1.dp, BorderSoft, RoundedCornerShape(22.dp))
             .padding(18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .background(type.accentColor().copy(alpha = 0.16f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = type.icon(),
+                contentDescription = null,
+                tint = type.accentColor(),
+                modifier = Modifier.size(23.dp),
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                text = type.displayName,
+                color = WhiteSoft,
+                fontSize = 17.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                text = "Tipo selecionado",
+                color = TextDim,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                .clickable { onBack() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.ArrowBack,
+                contentDescription = null,
+                tint = WhiteSoft,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuantitySelector(
+    quantity: Int,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CardDark, RoundedCornerShape(30.dp))
+            .border(1.dp, BorderSoft, RoundedCornerShape(30.dp))
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = if (selectedType == null) {
-                "Selecione um tipo para continuar"
-            } else {
-                "Próxima etapa"
-            },
-            color = WhiteSoft,
-            fontSize = 16.sp,
-            lineHeight = 22.sp,
-            fontWeight = FontWeight.SemiBold,
+            text = "Quantidade",
+            color = TextDim,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            fontWeight = FontWeight.Medium,
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(18.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            QuantityButton(
+                icon = Icons.Rounded.Remove,
+                enabled = quantity > 1,
+                onClick = onDecrease,
+            )
+
+            Text(
+                text = quantity.toString(),
+                color = WhiteSoft,
+                fontSize = 64.sp,
+                lineHeight = 70.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-1.2).sp,
+            )
+
+            QuantityButton(
+                icon = Icons.Rounded.Add,
+                enabled = quantity < 8,
+                onClick = onIncrease,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
 
         Text(
-            text = if (selectedType == null) {
-                "Depois disso, o LabLink vai perguntar a quantidade de controles e os pinos usados."
-            } else {
-                "Na próxima etapa, vamos definir quantos controles ${selectedType.displayName} você quer criar."
-            },
+            text = "Máximo recomendado nesta versão: 8 controles.",
             color = TextDim,
             fontSize = 13.sp,
             lineHeight = 18.sp,
         )
+    }
+}
+
+@Composable
+private fun QuantityButton(
+    icon: ImageVector,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(58.dp)
+            .alpha(if (enabled) 1f else 0.35f)
+            .background(
+                color = if (enabled) AccentPurple else Color.White.copy(alpha = 0.05f),
+                shape = CircleShape,
+            )
+            .clickable(enabled = enabled) { onClick() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (enabled) Color.Black else TextDim,
+            modifier = Modifier.size(28.dp),
+        )
+    }
+}
+
+@Composable
+private fun ContinueCard(
+    enabled: Boolean,
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.52f)
+            .background(
+                color = if (enabled) AccentGreen else CardDark,
+                shape = RoundedCornerShape(24.dp),
+            )
+            .border(
+                width = 1.dp,
+                color = if (enabled) AccentGreen.copy(alpha = 0.75f) else BorderSoft,
+                shape = RoundedCornerShape(24.dp),
+            )
+            .clickable(enabled = enabled) { onClick() }
+            .padding(18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(
+                    color = if (enabled) Color.Black.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.04f),
+                    shape = CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Check,
+                contentDescription = null,
+                tint = if (enabled) Color.Black else TextDim,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                text = title,
+                color = if (enabled) Color.Black else WhiteSoft,
+                fontSize = 17.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                text = description,
+                color = if (enabled) Color.Black.copy(alpha = 0.68f) else TextDim,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+            )
+        }
     }
 }
 
@@ -301,6 +555,16 @@ private fun ControlType.icon(): ImageVector {
         ControlType.ServoSlider -> Icons.Rounded.Speed
         ControlType.PulseButton -> Icons.Rounded.Bolt
         ControlType.AnalogRead -> Icons.Rounded.GraphicEq
+    }
+}
+
+private fun ControlType.accentColor(): Color {
+    return when (this) {
+        ControlType.DigitalToggle -> AccentYellow
+        ControlType.PwmSlider -> AccentPurple
+        ControlType.ServoSlider -> AccentGreen
+        ControlType.PulseButton -> AccentYellow
+        ControlType.AnalogRead -> AccentPurple
     }
 }
 
@@ -317,3 +581,4 @@ private fun CreateControlScreenPreview() {
         )
     }
 }
+
