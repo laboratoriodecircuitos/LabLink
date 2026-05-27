@@ -15,24 +15,23 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothConnectionStatus
-import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothService
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothUiState
 import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
 
 @Composable
 fun ConnectionScreen(
+    bluetoothState: BluetoothUiState,
+    developmentNotes: List<String>,
+    onRequestPermissions: () -> Unit,
+    onRefresh: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val bluetoothService = remember { LabLinkBluetoothService() }
-    val bluetoothState = remember { bluetoothService.initialState() }
-    val developmentNotes = remember { bluetoothService.getDevelopmentNotes() }
-
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -101,10 +100,20 @@ fun ConnectionScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = { },
+                onClick = onRequestPermissions,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = bluetoothState.status == BluetoothConnectionStatus.PermissionRequired,
+            ) {
+                Text(text = "Solicitar permissões Bluetooth")
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = onRefresh,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(text = "Buscar dispositivos pareados")
+                Text(text = "Atualizar status")
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -137,6 +146,18 @@ private fun BluetoothConnectionStatus.toDisplayText(): String {
 @Composable
 private fun ConnectionScreenPreview() {
     LabLinkTheme {
-        ConnectionScreen(onBack = {})
+        ConnectionScreen(
+            bluetoothState = BluetoothUiState(
+                status = BluetoothConnectionStatus.PermissionRequired,
+                message = "Permissões Bluetooth necessárias para continuar.",
+            ),
+            developmentNotes = listOf(
+                "Permissões Bluetooth adicionadas ao AndroidManifest.xml.",
+                "Solicitação de permissões em runtime preparada.",
+            ),
+            onRequestPermissions = {},
+            onRefresh = {},
+            onBack = {},
+        )
     }
 }
