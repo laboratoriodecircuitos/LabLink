@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -79,6 +80,7 @@ fun ControlsScreen(
     controlsRefreshKey: Int = 0,
     onSendPing: () -> Unit,
     onToggleDigitalControl: (LabLinkControl, Boolean) -> Unit = { _, _ -> },
+    onSendPwmControl: (LabLinkControl, Int) -> Unit = { _, _ -> },
     onTurnLedOn: () -> Unit,
     onTurnLedOff: () -> Unit,
     onOpenHome: () -> Unit,
@@ -101,15 +103,21 @@ fun ControlsScreen(
     val hasCustomControls = displayedControls.any { it.id != DefaultControls.pin13DigitalOutput.id } ||
         displayedControls.size != 1
     val digitalStates = remember { mutableStateMapOf<String, Boolean>() }
+    val pwmStates = remember { mutableStateMapOf<String, Int>() }
 
     LaunchedEffect(controlsRefreshKey, controls) {
         displayedControls.clear()
         displayedControls.addAll(controls)
 
         digitalStates.clear()
+        pwmStates.clear()
 
         displayedControls.forEach { control ->
-            digitalStates[control.id] = control.isOn
+            when (control.type) {
+                ControlType.DigitalToggle -> digitalStates[control.id] = control.isOn
+                ControlType.PwmSlider -> pwmStates[control.id] = control.currentValue ?: 0
+                else -> Unit
+            }
         }
     }
 
@@ -170,7 +178,18 @@ fun ControlsScreen(
                                     )
                                 }
 
-                                ControlType.PwmSlider,
+                                ControlType.PwmSlider -> {
+                                    PwmSliderControlCard(
+                                        control = control,
+                                        value = pwmStates[control.id] ?: control.currentValue ?: 0,
+                                        enabled = isConnected,
+                                        onValueChange = { newValue ->
+                                            pwmStates[control.id] = newValue
+                                            onSendPwmControl(control, newValue)
+                                        },
+                                    )
+                                }
+
                                 ControlType.ServoSlider,
                                 ControlType.PulseButton,
                                 ControlType.AnalogRead -> {
@@ -396,6 +415,126 @@ private fun LargeToggle(
                 contentDescription = null,
                 tint = if (isOn) AccentYellow else CardDark,
                 modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PwmSliderControlCard(
+    control: LabLinkControl,
+    value: Int,
+    enabled: Boolean,
+    onValueChange: (Int) -> Unit,
+) {
+    val safeValue = value.coerceIn(0, 255)
+    val percentage = ((safeValue / 255f) * 100).toInt()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.52f)
+            .background(CardDark, RoundedCornerShape(30.dp))
+            .border(
+                width = 1.dp,
+                color = if (safeValue > 0) AccentPurple.copy(alpha = 0.55f) else BorderSoft,
+                shape = RoundedCornerShape(30.dp),
+            )
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .background(AccentPurple.copy(alpha = 0.16f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Tune,
+                    contentDescription = null,
+                    tint = AccentPurple,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = control.name,
+                    color = WhiteSoft,
+                    fontSize = 18.sp,
+                    lineHeight = 23.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+
+                Spacer(modifier = Modifier.height(5.dp))
+
+                Text(
+                    text = "${control.pinLabel} • PWM",
+                    color = TextDim,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = safeValue.toString(),
+                color = WhiteSoft,
+                fontSize = 44.sp,
+                lineHeight = 50.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-0.8).sp,
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "$percentage%",
+                color = TextDim,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+            )
+        }
+
+        Slider(
+            value = safeValue.toFloat(),
+            onValueChange = { newValue ->
+                if (enabled) {
+                    onValueChange(newValue.toInt().coerceIn(0, 255))
+                }
+            },
+            enabled = enabled,
+            valueRange = 0f..255f,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = "0",
+                color = TextDim,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+
+            Text(
+                text = "255",
+                color = TextDim,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
             )
         }
     }
@@ -660,6 +799,7 @@ private fun ControlsScreenPreview() {
             controlsRefreshKey = 0,
             onSendPing = {},
             onToggleDigitalControl = { _, _ -> },
+            onSendPwmControl = { _, _ -> },
             onTurnLedOn = {},
             onTurnLedOff = {},
             onOpenHome = {},
@@ -671,6 +811,7 @@ private fun ControlsScreenPreview() {
         )
     }
 }
+
 
 
 

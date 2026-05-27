@@ -216,6 +216,14 @@ private fun LabLinkApp() {
                     )
                 )
             },
+            onSendPwmControl = { control, value ->
+                sendCommand(
+                    ControlCommandMapper.pwmCommand(
+                        control = control,
+                        value = value,
+                    )
+                )
+            },
             onTurnLedOn = {
                 sendCommand(
                     ControlCommandMapper.digitalToggleCommand(
@@ -257,6 +265,7 @@ private fun LabLinkApp() {
     }
 }
 }
+
 
 
 
