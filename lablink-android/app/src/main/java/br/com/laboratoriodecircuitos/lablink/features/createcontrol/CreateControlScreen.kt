@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Speed
@@ -58,6 +59,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.com.laboratoriodecircuitos.lablink.core.boards.BoardProfile
+import br.com.laboratoriodecircuitos.lablink.core.boards.BoardProfiles
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlType
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkDrawer
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkTopAppBar
@@ -73,6 +76,7 @@ private val WhiteSoft = Color(0xFFFFFFFF)
 private val BorderSoft = Color.White.copy(alpha = 0.06f)
 
 private enum class CreateControlStep {
+    ChooseBoard,
     ChooseType,
     ChooseQuantity,
     ConfigureControls,
@@ -88,7 +92,8 @@ fun CreateControlScreen(
 ) {
     val scrollState = rememberScrollState()
     var drawerOpen by remember { mutableStateOf(false) }
-    var currentStep by remember { mutableStateOf(CreateControlStep.ChooseType) }
+    var currentStep by remember { mutableStateOf(CreateControlStep.ChooseBoard) }
+    var selectedBoard by remember { mutableStateOf<BoardProfile?>(null) }
     var selectedType by remember { mutableStateOf<ControlType?>(null) }
     var quantity by remember { mutableIntStateOf(1) }
     var controlNames by remember { mutableStateOf(List(8) { "" }) }
@@ -128,10 +133,51 @@ fun CreateControlScreen(
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
                     when (currentStep) {
+                        CreateControlStep.ChooseBoard -> {
+                            HeaderSection(
+                                title = "Qual placa você está usando?",
+                                description = "A escolha da placa ajuda o LabLink a mostrar apenas os pinos corretos para cada tipo de controle.",
+                            )
+
+                            BoardProfiles.supportedBoards.forEach { board ->
+                                BoardCard(
+                                    board = board,
+                                    selected = selectedBoard?.type == board.type,
+                                    onClick = { selectedBoard = board },
+                                )
+                            }
+
+                            ContinueCard(
+                                enabled = selectedBoard != null,
+                                title = if (selectedBoard == null) {
+                                    "Selecione uma placa para continuar"
+                                } else {
+                                    "Continuar"
+                                },
+                                description = if (selectedBoard == null) {
+                                    "Nesta versão, começaremos com Arduino Uno / Nano."
+                                } else {
+                                    "Agora escolha o tipo de controle que deseja criar."
+                                },
+                                onClick = {
+                                    if (selectedBoard != null) {
+                                        currentStep = CreateControlStep.ChooseType
+                                    }
+                                },
+                            )
+                        }
+
                         CreateControlStep.ChooseType -> {
                             HeaderSection(
                                 title = "Que controle você quer criar?",
                                 description = "Escolha o tipo de controle que será usado no seu projeto Arduino.",
+                            )
+
+                            SelectedBoardSummary(
+                                board = selectedBoard,
+                                onBack = {
+                                    currentStep = CreateControlStep.ChooseBoard
+                                },
                             )
 
                             ControlType.values().forEach { type ->
@@ -174,6 +220,13 @@ fun CreateControlScreen(
                                 },
                             )
 
+                            SelectedBoardSummary(
+                                board = selectedBoard,
+                                onBack = {
+                                    currentStep = CreateControlStep.ChooseBoard
+                                },
+                            )
+
                             SelectedTypeSummary(
                                 type = type,
                                 label = "Tipo selecionado",
@@ -211,6 +264,13 @@ fun CreateControlScreen(
                                 description = "Dê um nome opcional e informe o pino usado em cada controle.",
                             )
 
+                            SelectedBoardSummary(
+                                board = selectedBoard,
+                                onBack = {
+                                    currentStep = CreateControlStep.ChooseBoard
+                                },
+                            )
+
                             SelectedTypeSummary(
                                 type = type,
                                 label = "$quantity controle${if (quantity > 1) "s" else ""}",
@@ -234,12 +294,12 @@ fun CreateControlScreen(
                                 enabled = allPinsFilled,
                                 title = if (allPinsFilled) "Salvar controles" else "Informe todos os pinos",
                                 description = if (allPinsFilled) {
-                                    "Na próxima etapa, o LabLink vai salvar e mostrar esses controles na tela principal."
+                                    "Na próxima etapa, o LabLink vai validar os pinos e mostrar esses controles na tela principal."
                                 } else {
                                     "Cada controle precisa ter um pino definido antes de continuar."
                                 },
                                 onClick = {
-                                    // Próxima etapa: salvar controles em memória/local.
+                                    // Próxima etapa: validar pinos conforme a placa e salvar controles.
                                 },
                             )
                         }
@@ -315,6 +375,146 @@ private fun HeaderSection(
             fontSize = 16.sp,
             lineHeight = 24.sp,
         )
+    }
+}
+
+@Composable
+private fun BoardCard(
+    board: BoardProfile,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = if (selected) AccentGreen else CardDark,
+                shape = RoundedCornerShape(24.dp),
+            )
+            .border(
+                width = 1.dp,
+                color = if (selected) AccentGreen.copy(alpha = 0.75f) else BorderSoft,
+                shape = RoundedCornerShape(24.dp),
+            )
+            .clickable { onClick() }
+            .padding(18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(50.dp)
+                .background(
+                    color = if (selected) Color.Black.copy(alpha = 0.10f) else AccentGreen.copy(alpha = 0.16f),
+                    shape = CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Memory,
+                contentDescription = null,
+                tint = if (selected) Color.Black else AccentGreen,
+                modifier = Modifier.size(25.dp),
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                text = board.displayName,
+                color = if (selected) Color.Black else WhiteSoft,
+                fontSize = 18.sp,
+                lineHeight = 23.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = board.description,
+                color = if (selected) Color.Black.copy(alpha = 0.68f) else TextDim,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+            )
+        }
+
+        if (selected) {
+            Icon(
+                imageVector = Icons.Rounded.Check,
+                contentDescription = null,
+                tint = Color.Black,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectedBoardSummary(
+    board: BoardProfile?,
+    onBack: () -> Unit,
+) {
+    if (board == null) return
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CardDark, RoundedCornerShape(22.dp))
+            .border(1.dp, BorderSoft, RoundedCornerShape(22.dp))
+            .padding(18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .background(AccentGreen.copy(alpha = 0.16f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Memory,
+                contentDescription = null,
+                tint = AccentGreen,
+                modifier = Modifier.size(23.dp),
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                text = board.displayName,
+                color = WhiteSoft,
+                fontSize = 17.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                text = "Placa selecionada",
+                color = TextDim,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                .clickable { onBack() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.ArrowBack,
+                contentDescription = null,
+                tint = WhiteSoft,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 
