@@ -65,6 +65,7 @@ import br.com.laboratoriodecircuitos.lablink.core.boards.BoardProfile
 import br.com.laboratoriodecircuitos.lablink.core.boards.BoardProfiles
 import br.com.laboratoriodecircuitos.lablink.core.boards.PinValidationResult
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlType
+import br.com.laboratoriodecircuitos.lablink.core.controls.LabLinkControl
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkDrawer
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkTopAppBar
 import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
@@ -93,6 +94,7 @@ fun CreateControlScreen(
     onOpenConnection: () -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenControls: () -> Unit,
+    onSaveControls: (List<LabLinkControl>) -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     var drawerOpen by remember { mutableStateOf(false) }
@@ -141,6 +143,44 @@ fun CreateControlScreen(
             controlType = type,
             usedPins = usedPinsExcept(index),
         )
+    }
+
+    fun buildConfiguredControls(): List<LabLinkControl> {
+        val type = selectedType ?: ControlType.DigitalToggle
+
+        return (0 until quantity).map { index ->
+            val normalizedPin = BoardPinValidator.normalizePin(controlPins[index])
+            val fallbackName = when (type) {
+                ControlType.DigitalToggle -> "Liga / Desliga ${index + 1}"
+                ControlType.PwmSlider -> "Slider PWM ${index + 1}"
+                ControlType.ServoSlider -> "Servo ${index + 1}"
+                ControlType.PulseButton -> "Pulso ${index + 1}"
+                ControlType.AnalogRead -> "Leitura ${index + 1}"
+            }
+
+            LabLinkControl(
+                id = "${type.name.lowercase()}_${index + 1}_${normalizedPin.lowercase()}",
+                type = type,
+                name = controlNames[index].ifBlank { fallbackName },
+                pin = normalizedPin.removePrefix("D"),
+                minValue = when (type) {
+                    ControlType.PwmSlider -> 0
+                    ControlType.ServoSlider -> 0
+                    else -> null
+                },
+                maxValue = when (type) {
+                    ControlType.PwmSlider -> 255
+                    ControlType.ServoSlider -> 180
+                    else -> null
+                },
+                currentValue = when (type) {
+                    ControlType.PwmSlider -> 0
+                    ControlType.ServoSlider -> 90
+                    else -> null
+                },
+                isOn = false,
+            )
+        }
     }
 
     fun validatePinAt(index: Int): PinValidationResult {
@@ -359,7 +399,7 @@ fun CreateControlScreen(
                                     "Selecione um pino disponível para cada controle."
                                 },
                                 onClick = {
-                                    // Próxima etapa: salvar controles em memória/local.
+                                    onSaveControls(buildConfiguredControls())
                                 },
                             )
                         }
@@ -1128,6 +1168,8 @@ private fun CreateControlScreenPreview() {
             onOpenConnection = {},
             onOpenTerminal = {},
             onOpenControls = {},
+            onSaveControls = {},
         )
     }
 }
+

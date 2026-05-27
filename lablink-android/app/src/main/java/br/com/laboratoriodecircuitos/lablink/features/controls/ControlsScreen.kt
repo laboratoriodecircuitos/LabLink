@@ -27,7 +27,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.PowerSettingsNew
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -35,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,7 +55,9 @@ import androidx.compose.ui.unit.sp
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothConnectionStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothUiState
+import br.com.laboratoriodecircuitos.lablink.core.controls.ControlType
 import br.com.laboratoriodecircuitos.lablink.core.controls.DefaultControls
+import br.com.laboratoriodecircuitos.lablink.core.controls.LabLinkControl
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkDrawer
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkTopAppBar
 import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
@@ -68,7 +74,9 @@ private val BorderSoft = Color.White.copy(alpha = 0.06f)
 @Composable
 fun ControlsScreen(
     bluetoothState: BluetoothUiState,
+    controls: List<LabLinkControl> = listOf(DefaultControls.pin13DigitalOutput),
     onSendPing: () -> Unit,
+    onToggleDigitalControl: (LabLinkControl, Boolean) -> Unit = { _, _ -> },
     onTurnLedOn: () -> Unit,
     onTurnLedOff: () -> Unit,
     onOpenHome: () -> Unit,
@@ -81,16 +89,25 @@ fun ControlsScreen(
     var drawerOpen by remember { mutableStateOf(false) }
 
     val isConnected = bluetoothState.status == BluetoothConnectionStatus.Connected
-    val primaryControl = DefaultControls.pin13DigitalOutput
+    val digitalStates = remember { mutableStateMapOf<String, Boolean>() }
 
-    var isOutputOn by remember {
-        mutableStateOf(bluetoothState.lastReceivedMessage == "OK:LED_ON")
+    LaunchedEffect(controls) {
+        controls.forEach { control ->
+            if (control.id !in digitalStates) {
+                digitalStates[control.id] = control.isOn
+            }
+        }
     }
 
     LaunchedEffect(bluetoothState.lastReceivedMessage) {
         when (bluetoothState.lastReceivedMessage) {
-            "OK:LED_ON" -> isOutputOn = true
-            "OK:LED_OFF" -> isOutputOn = false
+            "OK:LED_ON" -> controls
+                .filter { it.type == ControlType.DigitalToggle && it.pin == "13" }
+                .forEach { digitalStates[it.id] = true }
+
+            "OK:LED_OFF" -> controls
+                .filter { it.type == ControlType.DigitalToggle && it.pin == "13" }
+                .forEach { digitalStates[it.id] = false }
         }
     }
 
@@ -115,23 +132,39 @@ fun ControlsScreen(
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
-                    HeaderSection(isConnected = isConnected)
-
-                    DigitalOutputControlCard(
-                        isOn = isOutputOn,
-                        enabled = isConnected,
-                        pinLabel = primaryControl.pinLabel,
-                        onToggle = {
-                            val newState = !isOutputOn
-                            isOutputOn = newState
-
-                            if (newState) {
-                                onTurnLedOn()
-                            } else {
-                                onTurnLedOff()
-                            }
-                        },
+                    HeaderSection(
+                        isConnected = isConnected,
+                        hasCustomControls = controls.isNotEmpty(),
                     )
+
+                    if (controls.isEmpty()) {
+                        EmptyControlsCard(onCreateControl = onCreateControl)
+                    } else {
+                        controls.forEach { control ->
+                            when (control.type) {
+                                ControlType.DigitalToggle -> {
+                                    DigitalOutputControlCard(
+                                        control = control,
+                                        isOn = digitalStates[control.id] == true,
+                                        enabled = isConnected,
+                                        onToggle = {
+                                            val newState = !(digitalStates[control.id] ?: false)
+                                            digitalStates[control.id] = newState
+
+                                            onToggleDigitalControl(control, newState)
+                                        },
+                                    )
+                                }
+
+                                ControlType.PwmSlider,
+                                ControlType.ServoSlider,
+                                ControlType.PulseButton,
+                                ControlType.AnalogRead -> {
+                                    FutureConfiguredControlCard(control = control)
+                                }
+                            }
+                        }
+                    }
 
                     if (!isConnected) {
                         NotConnectedCard(
@@ -139,7 +172,7 @@ fun ControlsScreen(
                         )
                     }
 
-                    FutureControlsCard(onCreateControl = onCreateControl)
+                    CreateControlCard(onCreateControl = onCreateControl)
                 }
             }
 
@@ -185,14 +218,17 @@ fun ControlsScreen(
 }
 
 @Composable
-private fun HeaderSection(isConnected: Boolean) {
+private fun HeaderSection(
+    isConnected: Boolean,
+    hasCustomControls: Boolean,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp, bottom = 4.dp),
     ) {
         Text(
-            text = "Controle seu projeto",
+            text = if (hasCustomControls) "Meus controles" else "Controle seu projeto",
             color = WhiteSoft,
             fontSize = 28.sp,
             lineHeight = 34.sp,
@@ -204,9 +240,9 @@ private fun HeaderSection(isConnected: Boolean) {
 
         Text(
             text = if (isConnected) {
-                "Use o controle abaixo para acionar a saída configurada no Arduino."
+                "Use os controles abaixo para acionar as saídas configuradas no Arduino."
             } else {
-                "Conecte um dispositivo Bluetooth para controlar a saída do Arduino."
+                "Conecte um dispositivo Bluetooth para controlar o Arduino."
             },
             color = WhiteSoft.copy(alpha = 0.78f),
             fontSize = 16.sp,
@@ -217,9 +253,9 @@ private fun HeaderSection(isConnected: Boolean) {
 
 @Composable
 private fun DigitalOutputControlCard(
+    control: LabLinkControl,
     isOn: Boolean,
     enabled: Boolean,
-    pinLabel: String,
     onToggle: () -> Unit,
 ) {
     val activeColor = AccentYellow
@@ -240,6 +276,16 @@ private fun DigitalOutputControlCard(
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Text(
+            text = control.name,
+            color = WhiteSoft,
+            fontSize = 18.sp,
+            lineHeight = 23.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+
+        Spacer(modifier = Modifier.height(18.dp))
+
         Box(
             modifier = Modifier
                 .size(96.dp)
@@ -271,7 +317,7 @@ private fun DigitalOutputControlCard(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = pinLabel,
+            text = control.pinLabel,
             color = TextDim,
             fontSize = 13.sp,
             lineHeight = 18.sp,
@@ -328,6 +374,95 @@ private fun LargeToggle(
 }
 
 @Composable
+private fun FutureConfiguredControlCard(control: LabLinkControl) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CardDark, RoundedCornerShape(24.dp))
+            .border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
+            .padding(18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .background(control.type.accentColor().copy(alpha = 0.16f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = control.type.icon(),
+                contentDescription = null,
+                tint = control.type.accentColor(),
+                modifier = Modifier.size(24.dp),
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                text = control.name,
+                color = WhiteSoft,
+                fontSize = 17.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                text = "${control.type.displayName} • ${control.pinLabel}",
+                color = TextDim,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "Controle visual preparado. Ação será ativada em etapa futura.",
+                color = TextDim,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyControlsCard(
+    onCreateControl: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CardDark, RoundedCornerShape(24.dp))
+            .border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
+            .clickable { onCreateControl() }
+            .padding(20.dp),
+    ) {
+        Text(
+            text = "Nenhum controle criado",
+            color = WhiteSoft,
+            fontSize = 18.sp,
+            lineHeight = 23.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Crie controles para acionar saídas, PWM, servo, pulso ou leitura de sensores.",
+            color = TextDim,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+        )
+    }
+}
+
+@Composable
 private fun NotConnectedCard(
     onOpenConnection: () -> Unit,
 ) {
@@ -379,7 +514,7 @@ private fun NotConnectedCard(
 }
 
 @Composable
-private fun FutureControlsCard(onCreateControl: () -> Unit) {
+private fun CreateControlCard(onCreateControl: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -419,6 +554,26 @@ private fun FutureControlsCard(onCreateControl: () -> Unit) {
     }
 }
 
+private fun ControlType.icon(): ImageVector {
+    return when (this) {
+        ControlType.DigitalToggle -> Icons.Rounded.PowerSettingsNew
+        ControlType.PwmSlider -> Icons.Rounded.Tune
+        ControlType.ServoSlider -> Icons.Rounded.Speed
+        ControlType.PulseButton -> Icons.Rounded.Bolt
+        ControlType.AnalogRead -> Icons.Rounded.GraphicEq
+    }
+}
+
+private fun ControlType.accentColor(): Color {
+    return when (this) {
+        ControlType.DigitalToggle -> AccentYellow
+        ControlType.PwmSlider -> AccentPurple
+        ControlType.ServoSlider -> AccentGreen
+        ControlType.PulseButton -> AccentYellow
+        ControlType.AnalogRead -> AccentPurple
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 private fun ControlsScreenPreview() {
@@ -432,7 +587,9 @@ private fun ControlsScreenPreview() {
                 ),
                 lastReceivedMessage = "OK:LED_ON",
             ),
+            controls = listOf(DefaultControls.pin13DigitalOutput),
             onSendPing = {},
+            onToggleDigitalControl = { _, _ -> },
             onTurnLedOn = {},
             onTurnLedOff = {},
             onOpenHome = {},
@@ -443,5 +600,4 @@ private fun ControlsScreenPreview() {
         )
     }
 }
-
 

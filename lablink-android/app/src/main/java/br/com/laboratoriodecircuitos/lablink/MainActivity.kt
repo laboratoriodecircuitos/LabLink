@@ -19,6 +19,7 @@ import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPermissionH
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothService
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlCommandMapper
 import br.com.laboratoriodecircuitos.lablink.core.controls.DefaultControls
+import br.com.laboratoriodecircuitos.lablink.core.controls.LabLinkControl
 import br.com.laboratoriodecircuitos.lablink.features.connection.ConnectionScreen
 import br.com.laboratoriodecircuitos.lablink.features.controls.ControlsScreen
 import br.com.laboratoriodecircuitos.lablink.features.createcontrol.CreateControlScreen
@@ -55,6 +56,10 @@ private fun LabLinkApp() {
     var currentScreen by remember { mutableStateOf(LabLinkScreen.Home) }
     var bluetoothState by remember {
         mutableStateOf(bluetoothService.evaluateInitialState(context))
+    }
+
+    var configuredControls by remember {
+        mutableStateOf<List<LabLinkControl>>(listOf(DefaultControls.pin13DigitalOutput))
     }
 
     val isBluetoothConnectedForUi =
@@ -182,11 +187,24 @@ private fun LabLinkApp() {
             },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
             onOpenControls = { currentScreen = LabLinkScreen.Controls },
+            onSaveControls = { controls ->
+                configuredControls = controls
+                currentScreen = LabLinkScreen.Controls
+            },
         )
 
         LabLinkScreen.Controls -> ControlsScreen(
             bluetoothState = bluetoothState,
+            controls = configuredControls,
             onSendPing = { sendCommand("PING") },
+            onToggleDigitalControl = { control, turnOn ->
+                sendCommand(
+                    ControlCommandMapper.digitalToggleCommand(
+                        control = control,
+                        turnOn = turnOn,
+                    )
+                )
+            },
             onTurnLedOn = {
                 sendCommand(
                     ControlCommandMapper.digitalToggleCommand(
@@ -214,6 +232,7 @@ private fun LabLinkApp() {
         )
     }
 }
+
 
 
 
