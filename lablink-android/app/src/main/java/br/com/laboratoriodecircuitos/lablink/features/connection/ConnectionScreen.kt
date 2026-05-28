@@ -58,6 +58,7 @@ import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDiscoveredDevice
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDiscoveryStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPairingGuide
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPairingStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothUiState
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkDrawer
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkTopAppBar
@@ -85,6 +86,7 @@ fun ConnectionScreen(
     onConnectSelectedDevice: () -> Unit,
     onDisconnectSelectedDevice: () -> Unit,
     onStartPairingGuide: () -> Unit = {},
+    onPairDiscoveredDevice: (BluetoothDiscoveredDevice) -> Unit = {},
     onOpenHome: () -> Unit = {},
     onOpenConnection: () -> Unit = {},
     onOpenTerminal: () -> Unit = {},
@@ -188,6 +190,7 @@ fun ConnectionScreen(
                                 discoveryStatus = discoveryStatus,
                                 discoveredDevices = discoveredDevices,
                                 onStartPairingGuide = onStartPairingGuide,
+                                onPairDiscoveredDevice = onPairDiscoveredDevice,
                             )
                         }
 
@@ -198,6 +201,7 @@ fun ConnectionScreen(
                                 discoveryStatus = discoveryStatus,
                                 discoveredDevices = discoveredDevices,
                                 onStartPairingGuide = onStartPairingGuide,
+                                onPairDiscoveredDevice = onPairDiscoveredDevice,
                             )
                         }
                     }
@@ -295,6 +299,7 @@ private fun StartSearchContent(
     discoveryStatus: BluetoothDiscoveryStatus,
     discoveredDevices: List<BluetoothDiscoveredDevice>,
     onStartPairingGuide: () -> Unit,
+    onPairDiscoveredDevice: (BluetoothDiscoveredDevice) -> Unit,
 ) {
     StepCard(
         step = "Passo 1",
@@ -326,6 +331,7 @@ private fun DeviceSelectionContent(
     discoveryStatus: BluetoothDiscoveryStatus,
     discoveredDevices: List<BluetoothDiscoveredDevice>,
     onStartPairingGuide: () -> Unit,
+    onPairDiscoveredDevice: (BluetoothDiscoveredDevice) -> Unit,
 ) {
     StepCard(
         step = "Passo 2",
@@ -355,6 +361,7 @@ private fun DeviceSelectionContent(
         discoveryStatus = discoveryStatus,
         discoveredDevices = discoveredDevices,
         onStartPairingGuide = onStartPairingGuide,
+        onPairDiscoveredDevice = onPairDiscoveredDevice,
     )
 }
 
@@ -469,6 +476,7 @@ private fun PairNewDeviceGuideCard(
     discoveryStatus: BluetoothDiscoveryStatus,
     discoveredDevices: List<BluetoothDiscoveredDevice>,
     onStartPairingGuide: () -> Unit,
+    onPairDiscoveredDevice: (BluetoothDiscoveredDevice) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -555,7 +563,12 @@ private fun PairNewDeviceGuideCard(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 discoveredDevices.forEach { discoveredDevice ->
-                    DiscoveredDeviceItem(device = discoveredDevice)
+                    DiscoveredDeviceItem(
+                        device = discoveredDevice,
+                        onPair = {
+                            onPairDiscoveredDevice(discoveredDevice)
+                        },
+                    )
                 }
             }
         }
@@ -581,8 +594,13 @@ private fun PairNewDeviceGuideCard(
 }
 
 @Composable
-private fun DiscoveredDeviceItem(device: BluetoothDiscoveredDevice) {
+private fun DiscoveredDeviceItem(
+    device: BluetoothDiscoveredDevice,
+    onPair: () -> Unit,
+) {
     val isLikelyModule = device.isLikelyLabLinkModule
+    val isPairing = device.pairingStatus == BluetoothPairingStatus.Pairing
+    val isPaired = device.pairingStatus == BluetoothPairingStatus.Paired
 
     Row(
         modifier = Modifier
@@ -593,6 +611,7 @@ private fun DiscoveredDeviceItem(device: BluetoothDiscoveredDevice) {
                 color = if (isLikelyModule) AccentGreen.copy(alpha = 0.45f) else BorderSoft,
                 shape = RoundedCornerShape(18.dp),
             )
+            .clickable(enabled = !isPairing && !isPaired) { onPair() }
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -637,8 +656,18 @@ private fun DiscoveredDeviceItem(device: BluetoothDiscoveredDevice) {
         }
 
         Text(
-            text = if (isLikelyModule) "HC" else "BT",
-            color = if (isLikelyModule) AccentGreen else TextDim,
+            text = when {
+                isPaired -> "Pareado"
+                isPairing -> "Pareando"
+                isLikelyModule -> "Parear"
+                else -> "Parear"
+            },
+            color = when {
+                isPaired -> AccentGreen
+                isPairing -> AccentYellow
+                isLikelyModule -> AccentGreen
+                else -> AccentPurple
+            },
             fontSize = 12.sp,
             lineHeight = 16.sp,
             fontWeight = FontWeight.SemiBold,
@@ -910,6 +939,7 @@ private fun ConnectionScreenPreview() {
             onConnectSelectedDevice = {},
             onDisconnectSelectedDevice = {},
             onStartPairingGuide = {},
+            onPairDiscoveredDevice = {},
             onOpenHome = {},
             onOpenConnection = {},
             onOpenTerminal = {},
@@ -918,6 +948,8 @@ private fun ConnectionScreenPreview() {
         )
     }
 }
+
+
 
 
 

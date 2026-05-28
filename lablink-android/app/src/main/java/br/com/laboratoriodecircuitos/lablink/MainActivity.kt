@@ -26,6 +26,7 @@ import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDiscoveryCo
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDiscoveryStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPermissionHelper
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPermissionRequirements
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPairingStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothService
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlCommandMapper
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlStorage
@@ -220,6 +221,121 @@ private fun LabLinkApp() {
             )
         }
     }
+    fun pairDiscoveredDevice(discoveredDevice: BluetoothDiscoveredDevice) {
+        bluetoothDiscoveryController.startPairing(
+            context = context.applicationContext,
+            discoveredDevice = discoveredDevice,
+            onPairingStarted = {
+                mainHandler.post {
+                    discoveryStatus = BluetoothDiscoveryStatus.Finished
+
+                    val existingIndex = discoveredDevices.indexOfFirst { existing ->
+                        existing.address == discoveredDevice.address
+                    }
+
+                    val pairingDevice = discoveredDevice.copy(
+                        pairingStatus = BluetoothPairingStatus.Pairing,
+                    )
+
+                    if (existingIndex >= 0) {
+                        discoveredDevices[existingIndex] = pairingDevice
+                    }
+
+                    bluetoothState = bluetoothState.copy(
+                        message = "Pareamento iniciado com ${discoveredDevice.name}. Se o Android pedir senha, tente 1234. Se não funcionar, tente 0000.",
+                    )
+                }
+            },
+            onPairingSucceeded = {
+                mainHandler.post {
+                    val pairedDevice = discoveredDevice.copy(
+                        pairingStatus = BluetoothPairingStatus.Paired,
+                    )
+
+                    val existingIndex = discoveredDevices.indexOfFirst { existing ->
+                        existing.address == discoveredDevice.address
+                    }
+
+                    if (existingIndex >= 0) {
+                        discoveredDevices[existingIndex] = pairedDevice
+                    }
+
+                    bluetoothState = bluetoothState.copy(
+                        message = "${discoveredDevice.name} pareado com sucesso.",
+                    )
+
+                    mainHandler.postDelayed(
+                        {
+                            val refreshedState = bluetoothService.loadPairedDevices(context)
+                            val matchedDevice = refreshedState.pairedDevices.firstOrNull { paired ->
+                                paired.address == discoveredDevice.address
+                            }
+
+                            bluetoothState = if (matchedDevice != null) {
+                                bluetoothService.selectDevice(
+                                    currentState = refreshedState,
+                                    device = matchedDevice,
+                                ).copy(
+                                    message = "${discoveredDevice.name} pareado com sucesso. Agora toque em Conectar para abrir a comunicação Bluetooth.",
+                                )
+                            } else {
+                                refreshedState.copy(
+                                    message = "${discoveredDevice.name} pareado com sucesso. Toque em buscar dispositivos pareados para conectar.",
+                                )
+                            }
+                        },
+                        500L,
+                    )
+                }
+            },
+            onPairingFailed = {
+                mainHandler.post {
+                    val existingIndex = discoveredDevices.indexOfFirst { existing ->
+                        existing.address == discoveredDevice.address
+                    }
+
+                    val notPairedDevice = discoveredDevice.copy(
+                        pairingStatus = BluetoothPairingStatus.NotPaired,
+                    )
+
+                    if (existingIndex >= 0) {
+                        discoveredDevices[existingIndex] = notPairedDevice
+                    }
+
+                    bluetoothState = bluetoothState.copy(
+                        message = "Pareamento não concluído com ${discoveredDevice.name}. Confira a senha 1234 ou 0000 e tente novamente.",
+                    )
+                }
+            },
+            onAlreadyPaired = {
+                mainHandler.post {
+                    val existingIndex = discoveredDevices.indexOfFirst { existing ->
+                        existing.address == discoveredDevice.address
+                    }
+
+                    val pairedDevice = discoveredDevice.copy(
+                        pairingStatus = BluetoothPairingStatus.Paired,
+                    )
+
+                    if (existingIndex >= 0) {
+                        discoveredDevices[existingIndex] = pairedDevice
+                    }
+
+                    bluetoothState = bluetoothState.copy(
+                        message = "${discoveredDevice.name} já está pareado. Toque em buscar dispositivos pareados para conectar.",
+                    )
+
+                    loadPairedDevices()
+                }
+            },
+            onError = { message ->
+                mainHandler.post {
+                    discoveryStatus = BluetoothDiscoveryStatus.Error
+                    bluetoothState = bluetoothState.copy(message = message)
+                }
+            },
+        )
+    }
     when (currentScreen) {
         LabLinkScreen.Home -> LabLinkHomeScreen(
             isBluetoothConnected = isBluetoothConnectedForUi,
@@ -258,6 +374,9 @@ private fun LabLinkApp() {
             },
             onStartPairingGuide = {
                 requestDiscoveryPermissionOrStartSearch()
+            },
+            onPairDiscoveredDevice = { discoveredDevice ->
+                pairDiscoveredDevice(discoveredDevice)
             },
             onOpenHome = { currentScreen = LabLinkScreen.Home },
             onOpenConnection = {
@@ -375,6 +494,9 @@ private fun LabLinkApp() {
     }
 }
 }
+
+
+
 
 
 
