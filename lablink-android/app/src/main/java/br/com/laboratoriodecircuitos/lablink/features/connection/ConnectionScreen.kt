@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -95,6 +98,7 @@ fun ConnectionScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.navigationBars)
                 .background(BgDeep),
         ) {
             Column(
@@ -344,8 +348,6 @@ private fun SelectedDeviceContent(
         iconColor = AccentYellow,
     )
 
-    SelectedDeviceCard(device = device)
-
     PrimaryActionButton(
         title = if (status == BluetoothConnectionStatus.Connecting) "Conectando..." else "Conectar ao ${device.name}",
         subtitle = "Abrir comunicação Bluetooth",
@@ -374,8 +376,6 @@ private fun ConnectedContent(
         icon = Icons.Rounded.Check,
         iconColor = AccentGreen,
     )
-
-    SelectedDeviceCard(device = device)
 
     PrimaryActionButton(
         title = "Desconectar",
@@ -513,54 +513,6 @@ private fun DeviceItem(
     }
 }
 
-@Composable
-private fun SelectedDeviceCard(device: BluetoothDeviceInfo) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(18.dp))
-            .border(1.dp, AccentGreen.copy(alpha = 0.50f), RoundedCornerShape(18.dp))
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .background(AccentGreen.copy(alpha = 0.14f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Check,
-                contentDescription = null,
-                tint = AccentGreen,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-        ) {
-            Text(
-                text = device.name,
-                color = WhiteSoft,
-                fontSize = 16.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = device.address,
-                color = TextDim,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                fontFamily = FontFamily.Monospace,
-            )
-        }
-    }
-}
 
 @Composable
 private fun PrimaryActionButton(
@@ -716,3 +668,6 @@ private fun ConnectionScreenPreview() {
         )
     }
 }
+
+
+

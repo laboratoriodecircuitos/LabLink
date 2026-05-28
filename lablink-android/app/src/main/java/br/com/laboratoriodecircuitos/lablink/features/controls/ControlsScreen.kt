@@ -14,11 +14,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -167,6 +170,7 @@ fun ControlsScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.navigationBars)
                 .background(BgDeep),
         ) {
             Column(
@@ -179,7 +183,7 @@ fun ControlsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     HeaderSection(
                         isConnected = isConnected,
@@ -352,7 +356,7 @@ private fun HeaderSection(
 
         Text(
             text = if (isConnected) {
-                "Use os controles abaixo para acionar as saídas configuradas no Arduino."
+                "Controle os pinos configurados no seu projeto Arduino."
             } else {
                 "Conecte um dispositivo Bluetooth para controlar o Arduino."
             },
@@ -385,7 +389,7 @@ private fun DigitalOutputControlCard(
                 shape = RoundedCornerShape(30.dp),
             )
             .clickable(enabled = enabled) { onToggle() }
-            .padding(24.dp),
+            .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -396,11 +400,21 @@ private fun DigitalOutputControlCard(
             fontWeight = FontWeight.SemiBold,
         )
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = "Liga / Desliga • ${control.pinLabel}",
+            color = TextDim,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            fontFamily = FontFamily.Monospace,
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Box(
             modifier = Modifier
-                .size(96.dp)
+                .size(84.dp)
                 .background(
                     color = if (isOn) activeColor.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.05f),
                     shape = CircleShape,
@@ -411,11 +425,11 @@ private fun DigitalOutputControlCard(
                 imageVector = Icons.Outlined.Lightbulb,
                 contentDescription = null,
                 tint = if (isOn) activeColor else inactiveIconColor,
-                modifier = Modifier.size(52.dp),
+                modifier = Modifier.size(46.dp),
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         Text(
             text = statusText,
@@ -428,15 +442,7 @@ private fun DigitalOutputControlCard(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Text(
-            text = control.pinLabel,
-            color = TextDim,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-            fontFamily = FontFamily.Monospace,
-        )
-
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(22.dp))
 
         LargeToggle(
             isOn = isOn,
@@ -506,8 +512,8 @@ private fun PwmSliderControlCard(
                 color = if (safeValue > 0) AccentPurple.copy(alpha = 0.55f) else BorderSoft,
                 shape = RoundedCornerShape(30.dp),
             )
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -516,7 +522,7 @@ private fun PwmSliderControlCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(54.dp)
+                    .size(48.dp)
                     .background(AccentPurple.copy(alpha = 0.16f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
@@ -524,7 +530,7 @@ private fun PwmSliderControlCard(
                     imageVector = Icons.Rounded.Tune,
                     contentDescription = null,
                     tint = AccentPurple,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
 
@@ -558,8 +564,8 @@ private fun PwmSliderControlCard(
             Text(
                 text = safeValue.toString(),
                 color = WhiteSoft,
-                fontSize = 44.sp,
-                lineHeight = 50.sp,
+                fontSize = 40.sp,
+                lineHeight = 46.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = (-0.8).sp,
             )
@@ -627,8 +633,8 @@ private fun PulseControlCard(
                 color = BorderSoft,
                 shape = RoundedCornerShape(30.dp),
             )
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -637,7 +643,7 @@ private fun PulseControlCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(54.dp)
+                    .size(48.dp)
                     .background(AccentYellow.copy(alpha = 0.16f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
@@ -645,7 +651,7 @@ private fun PulseControlCard(
                     imageVector = Icons.Rounded.Bolt,
                     contentDescription = null,
                     tint = AccentYellow,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
 
@@ -663,7 +669,7 @@ private fun PulseControlCard(
                 Spacer(modifier = Modifier.height(5.dp))
 
                 Text(
-                    text = "${control.pinLabel} • Pulso de 500 ms",
+                    text = "${control.pinLabel} • Pulso momentâneo",
                     color = TextDim,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
@@ -675,7 +681,7 @@ private fun PulseControlCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(68.dp)
+                .height(62.dp)
                 .background(
                     color = if (enabled) AccentYellow else Color.White.copy(alpha = 0.06f),
                     shape = RoundedCornerShape(22.dp),
@@ -730,8 +736,8 @@ private fun AnalogReadControlCard(
                 color = if (value != null) AccentGreen.copy(alpha = 0.45f) else BorderSoft,
                 shape = RoundedCornerShape(30.dp),
             )
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -740,7 +746,7 @@ private fun AnalogReadControlCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(54.dp)
+                    .size(48.dp)
                     .background(AccentGreen.copy(alpha = 0.16f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
@@ -748,7 +754,7 @@ private fun AnalogReadControlCard(
                     imageVector = Icons.Rounded.GraphicEq,
                     contentDescription = null,
                     tint = AccentGreen,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
 
@@ -766,7 +772,7 @@ private fun AnalogReadControlCard(
                 Spacer(modifier = Modifier.height(5.dp))
 
                 Text(
-                    text = "${control.pinLabel} • Leitura analógica",
+                    text = "${control.pinLabel} • Entrada analógica",
                     color = TextDim,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
@@ -782,8 +788,8 @@ private fun AnalogReadControlCard(
             Text(
                 text = displayValue,
                 color = WhiteSoft,
-                fontSize = 48.sp,
-                lineHeight = 54.sp,
+                fontSize = 42.sp,
+                lineHeight = 48.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = (-0.8).sp,
             )
@@ -801,7 +807,7 @@ private fun AnalogReadControlCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(68.dp)
+                .height(62.dp)
                 .background(
                     color = if (enabled) AccentGreen else Color.White.copy(alpha = 0.06f),
                     shape = RoundedCornerShape(22.dp),
@@ -825,7 +831,7 @@ private fun AnalogReadControlCard(
 
         Text(
             text = if (enabled) {
-                "Ao tocar, o Arduino lê o valor analógico atual deste pino."
+                "Toca para ler o valor analógico atual."
             } else {
                 "Conecte o Bluetooth para fazer a leitura."
             },
@@ -984,7 +990,7 @@ private fun CreateControlCard(onCreateControl: () -> Unit) {
             .background(CardDark, RoundedCornerShape(22.dp))
             .border(1.dp, BorderSoft, RoundedCornerShape(22.dp))
             .clickable { onCreateControl() }
-            .padding(18.dp),
+            .padding(16.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1025,7 +1031,7 @@ private fun ResetControlsCard(onClearControls: () -> Unit) {
             .background(CardDark, RoundedCornerShape(22.dp))
             .border(1.dp, BorderSoft, RoundedCornerShape(22.dp))
             .clickable { onClearControls() }
-            .padding(18.dp),
+            .padding(16.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1109,6 +1115,8 @@ private fun ControlsScreenPreview() {
         )
     }
 }
+
+
 
 
 
