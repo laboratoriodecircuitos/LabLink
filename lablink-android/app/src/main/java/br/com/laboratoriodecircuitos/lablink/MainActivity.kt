@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -242,7 +243,7 @@ private fun LabLinkApp() {
                     }
 
                     bluetoothState = bluetoothState.copy(
-                        message = "Pareamento iniciado com ${discoveredDevice.name}. Se o Android pedir senha, tente 1234. Se não funcionar, tente 0000.",
+                        message = "Pareando ${discoveredDevice.name}. Se o Android pedir senha, use 1234. Se não funcionar, tente 0000.",
                     )
                 }
             },
@@ -276,11 +277,11 @@ private fun LabLinkApp() {
                                     currentState = refreshedState,
                                     device = matchedDevice,
                                 ).copy(
-                                    message = "${discoveredDevice.name} pareado com sucesso. Agora toque em Conectar para abrir a comunicação Bluetooth.",
+                                    message = "${discoveredDevice.name} pareado com sucesso. Toque em Conectar para controlar seu projeto.",
                                 )
                             } else {
                                 refreshedState.copy(
-                                    message = "${discoveredDevice.name} pareado com sucesso. Toque em buscar dispositivos pareados para conectar.",
+                                    message = "${discoveredDevice.name} pareado com sucesso. Agora ele já pode ser selecionado para conexão.",
                                 )
                             }
                         },
@@ -303,7 +304,7 @@ private fun LabLinkApp() {
                     }
 
                     bluetoothState = bluetoothState.copy(
-                        message = "Pareamento não concluído com ${discoveredDevice.name}. Confira a senha 1234 ou 0000 e tente novamente.",
+                        message = "Pareamento não concluído com ${discoveredDevice.name}. Confira se o módulo está piscando e tente 1234 ou 0000.",
                     )
                 }
             },
@@ -322,7 +323,7 @@ private fun LabLinkApp() {
                     }
 
                     bluetoothState = bluetoothState.copy(
-                        message = "${discoveredDevice.name} já está pareado. Toque em buscar dispositivos pareados para conectar.",
+                        message = "${discoveredDevice.name} já está pareado. Toque em Conectar ou busque os módulos pareados.",
                     )
 
                     loadPairedDevices()
@@ -335,6 +336,56 @@ private fun LabLinkApp() {
                 }
             },
         )
+    }
+    fun isInsideBluetoothFlow(): Boolean {
+        return bluetoothState.selectedDevice != null ||
+            bluetoothState.pairedDevices.isNotEmpty() ||
+            discoveredDevices.isNotEmpty() ||
+            discoveryStatus != BluetoothDiscoveryStatus.Idle
+    }
+
+    fun resetBluetoothFlowToStart() {
+        bluetoothDiscoveryController.stopDiscovery(context.applicationContext)
+        discoveredDevices.clear()
+        discoveryStatus = BluetoothDiscoveryStatus.Idle
+
+        if (bluetoothState.status != BluetoothConnectionStatus.Connected) {
+            bluetoothState = bluetoothService.evaluateInitialState(context)
+        }
+    }
+    fun handleAndroidBack() {
+        when (currentScreen) {
+            LabLinkScreen.Home -> Unit
+
+            LabLinkScreen.Connection -> {
+                if (
+                    bluetoothState.status != BluetoothConnectionStatus.Connected &&
+                    isInsideBluetoothFlow()
+                ) {
+                    resetBluetoothFlowToStart()
+                } else {
+                    currentScreen = LabLinkScreen.Home
+                }
+            }
+
+            LabLinkScreen.Terminal -> {
+                currentScreen = LabLinkScreen.Home
+            }
+
+            LabLinkScreen.Controls -> {
+                currentScreen = LabLinkScreen.Home
+            }
+
+            LabLinkScreen.CreateControl -> {
+                currentScreen = LabLinkScreen.Controls
+            }
+        }
+    }
+
+    BackHandler(
+        enabled = currentScreen != LabLinkScreen.Home,
+    ) {
+        handleAndroidBack()
     }
     when (currentScreen) {
         LabLinkScreen.Home -> LabLinkHomeScreen(
@@ -494,6 +545,9 @@ private fun LabLinkApp() {
     }
 }
 }
+
+
+
 
 
 

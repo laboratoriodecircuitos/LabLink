@@ -209,7 +209,7 @@ fun ConnectionScreen(
                     if (bluetoothState.status == BluetoothConnectionStatus.Error) {
                         SimpleMessageCard(
                             title = "Não foi possível conectar",
-                            message = "Confira se o HC-06 está ligado, pareado no Android e próximo do celular.",
+                            message = "Confira se o HC-05/HC-06 está ligado, próximo do celular e corretamente pareado.",
                         )
                     }
                 }
@@ -283,7 +283,7 @@ private fun ConnectionHeader(
                 isConnected -> "Tudo pronto. Agora você pode controlar seu projeto Arduino."
                 selectedDevice != null -> "Dispositivo escolhido. Agora é só conectar."
                 hasDevices -> "Escolha o módulo Bluetooth do seu projeto."
-                else -> "Vamos encontrar um módulo HC-05 ou HC-06 pareado no Android."
+                else -> "Escolha como deseja preparar seu módulo Bluetooth."
             },
             color = WhiteSoft.copy(alpha = 0.78f),
             fontSize = 16.sp,
@@ -301,20 +301,20 @@ private fun StartSearchContent(
     onStartPairingGuide: () -> Unit,
     onPairDiscoveredDevice: (BluetoothDiscoveredDevice) -> Unit,
 ) {
-    StepCard(
-        step = "Passo 1",
-        title = "Busque seus dispositivos pareados",
-        description = "Antes de conectar, o módulo HC-05 ou HC-06 precisa estar pareado nas configurações Bluetooth do Android.",
-        icon = Icons.Rounded.BluetoothSearching,
-        iconColor = AccentPurple,
-    )
 
     PrimaryActionButton(
-        title = "Buscar dispositivos pareados",
-        subtitle = "Carregar lista do Android",
+        title = "Buscar módulos pareados",
+        subtitle = "Mostrar módulos já salvos no Android",
         icon = Icons.Rounded.BluetoothSearching,
         backgroundColor = AccentPurple,
         onClick = onSearch,
+    )
+
+    PairNewDeviceGuideCard(
+        discoveryStatus = discoveryStatus,
+        discoveredDevices = discoveredDevices,
+        onStartPairingGuide = onStartPairingGuide,
+        onPairDiscoveredDevice = onPairDiscoveredDevice,
     )
 
     SecondaryActionButton(
@@ -335,8 +335,8 @@ private fun DeviceSelectionContent(
 ) {
     StepCard(
         step = "Passo 2",
-        title = "Escolha o módulo do projeto",
-        description = "Toque no HC-05 ou HC-06 que está ligado ao Arduino.",
+        title = "Escolha o módulo já pareado",
+        description = "Toque no HC-05/HC-06 que você quer conectar ao Arduino.",
         icon = Icons.Rounded.Devices,
         iconColor = AccentYellow,
     )
@@ -355,13 +355,6 @@ private fun DeviceSelectionContent(
     SecondaryActionButton(
         title = "Buscar novamente",
         onClick = onSearchAgain,
-    )
-
-    PairNewDeviceGuideCard(
-        discoveryStatus = discoveryStatus,
-        discoveredDevices = discoveredDevices,
-        onStartPairingGuide = onStartPairingGuide,
-        onPairDiscoveredDevice = onPairDiscoveredDevice,
     )
 }
 
@@ -509,7 +502,7 @@ private fun PairNewDeviceGuideCard(
                 modifier = Modifier.weight(1f),
             ) {
                 Text(
-                    text = "Primeira vez usando o módulo?",
+                    text = "Parear novo módulo",
                     color = WhiteSoft,
                     fontSize = 17.sp,
                     lineHeight = 23.sp,
@@ -519,7 +512,7 @@ private fun PairNewDeviceGuideCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Pareie o HC-05/HC-06 antes de conectar.",
+                    text = "Encontrar HC-05/HC-06 próximo e iniciar pareamento.",
                     color = TextDim,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
@@ -542,16 +535,16 @@ private fun PairNewDeviceGuideCard(
 
         Text(
             text = when (discoveryStatus) {
-                BluetoothDiscoveryStatus.Idle -> "Toque no botão para procurar módulos próximos."
-                BluetoothDiscoveryStatus.PermissionRequired -> "O Android precisa permitir a busca Bluetooth para encontrar módulos próximos."
-                BluetoothDiscoveryStatus.BluetoothDisabled -> "Ative o Bluetooth do celular para buscar módulos próximos."
-                BluetoothDiscoveryStatus.Scanning -> "Buscando módulos próximos..."
+                BluetoothDiscoveryStatus.Idle -> "Ligue o módulo, aguarde o LED piscar e toque para procurar."
+                BluetoothDiscoveryStatus.PermissionRequired -> "Permita a busca Bluetooth para o LabLink encontrar módulos próximos."
+                BluetoothDiscoveryStatus.BluetoothDisabled -> "Ative o Bluetooth do celular para procurar o HC-05/HC-06."
+                BluetoothDiscoveryStatus.Scanning -> "Procurando módulos Bluetooth próximos..."
                 BluetoothDiscoveryStatus.Finished -> if (discoveredDevices.isEmpty()) {
                     "Busca concluída. Nenhum dispositivo encontrado. Confira se o LED do HC-05/HC-06 está piscando."
                 } else {
-                    "Busca concluída. O pareamento será habilitado na próxima etapa."
+                    "Busca concluída. Toque no módulo encontrado para iniciar o pareamento."
                 }
-                BluetoothDiscoveryStatus.Error -> "Não foi possível concluir a busca. Confira permissões e Bluetooth."
+                BluetoothDiscoveryStatus.Error -> "Não foi possível concluir a busca. Confira o Bluetooth, as permissões e se o módulo está ligado."
             },
             color = TextDim,
             fontSize = 12.sp,
@@ -580,9 +573,9 @@ private fun PairNewDeviceGuideCard(
                 BluetoothPairingGuide.pairingButtonLabel
             },
             subtitle = if (discoveryStatus == BluetoothDiscoveryStatus.Scanning) {
-                "Aguarde a busca terminar"
+                "Procurando dispositivos"
             } else {
-                "Encontrar módulos próximos"
+                "Procurar módulos próximos"
             },
             icon = Icons.Rounded.BluetoothSearching,
             backgroundColor = AccentPurple,
@@ -948,6 +941,11 @@ private fun ConnectionScreenPreview() {
         )
     }
 }
+
+
+
+
+
 
 
 

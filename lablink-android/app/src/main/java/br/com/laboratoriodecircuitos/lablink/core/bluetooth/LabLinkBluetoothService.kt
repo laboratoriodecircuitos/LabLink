@@ -40,7 +40,7 @@ class LabLinkBluetoothService {
 
                 else -> BluetoothUiState(
                     status = BluetoothConnectionStatus.Ready,
-                    message = "Permissões concedidas. Bluetooth pronto para buscar dispositivos pareados.",
+                    message = "Permissões concedidas. Bluetooth pronto para conectar ou parear um módulo.",
                 )
             }
         } catch (exception: SecurityException) {
@@ -81,13 +81,13 @@ class LabLinkBluetoothService {
                     BluetoothUiState(
                         status = BluetoothConnectionStatus.Ready,
                         pairedDevices = emptyList(),
-                        message = "Nenhum dispositivo Bluetooth pareado encontrado. Pareie o HC-05/HC-06 nas configurações do Android.",
+                        message = "Nenhum módulo pareado encontrado. Use “Parear dispositivo” para encontrar e parear um HC-05/HC-06 pelo app.",
                     )
                 } else {
                     BluetoothUiState(
                         status = BluetoothConnectionStatus.Ready,
                         pairedDevices = devices,
-                        message = "Dispositivos pareados encontrados: ${devices.size}. Toque em um dispositivo para selecionar.",
+                        message = "Módulos pareados encontrados: ${devices.size}. Toque em um dispositivo para selecionar.",
                     )
                 }
             }
@@ -105,7 +105,7 @@ class LabLinkBluetoothService {
     ): BluetoothUiState {
         return currentState.copy(
             selectedDevice = device,
-            message = "Dispositivo selecionado: ${device.name}. Toque em conectar para abrir a comunicação Bluetooth.",
+            message = "Módulo selecionado: ${device.name}. Toque em Conectar para abrir a comunicação Bluetooth.",
         )
     }
 
@@ -349,4 +349,5 @@ class LabLinkBluetoothService {
         )
     }
 }
+
 
