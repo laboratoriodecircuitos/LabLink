@@ -82,6 +82,7 @@ fun ControlsScreen(
     onToggleDigitalControl: (LabLinkControl, Boolean) -> Unit = { _, _ -> },
     onSendPwmControl: (LabLinkControl, Int) -> Unit = { _, _ -> },
     onSendPulseControl: (LabLinkControl) -> Unit = {},
+    onReadAnalogControl: (LabLinkControl) -> Unit = {},
     onTurnLedOn: () -> Unit,
     onTurnLedOff: () -> Unit,
     onOpenHome: () -> Unit,
@@ -105,6 +106,7 @@ fun ControlsScreen(
         displayedControls.size != 1
     val digitalStates = remember { mutableStateMapOf<String, Boolean>() }
     val pwmStates = remember { mutableStateMapOf<String, Int>() }
+    val analogReadStates = remember { mutableStateMapOf<String, Int>() }
     val pwmLastSentAt = remember { mutableStateMapOf<String, Long>() }
     val pwmLastSentValues = remember { mutableStateMapOf<String, Int>() }
 
@@ -114,6 +116,7 @@ fun ControlsScreen(
 
         digitalStates.clear()
         pwmStates.clear()
+        analogReadStates.clear()
         pwmLastSentAt.clear()
         pwmLastSentValues.clear()
 
@@ -121,6 +124,7 @@ fun ControlsScreen(
             when (control.type) {
                 ControlType.DigitalToggle -> digitalStates[control.id] = control.isOn
                 ControlType.PwmSlider -> pwmStates[control.id] = control.currentValue ?: 0
+                ControlType.AnalogRead -> analogReadStates[control.id] = control.currentValue ?: 0
                 else -> Unit
             }
         }
@@ -135,6 +139,24 @@ fun ControlsScreen(
             "OK:LED_OFF" -> displayedControls
                 .filter { it.type == ControlType.DigitalToggle && it.pin == "13" }
                 .forEach { digitalStates[it.id] = false }
+
+            else -> {
+                val message = bluetoothState.lastReceivedMessage.orEmpty()
+
+                if (message.startsWith("OK:READ:")) {
+                    val parts = message.split(":")
+                    val pin = parts.getOrNull(2)?.uppercase()
+                    val value = parts.getOrNull(3)?.toIntOrNull()
+
+                    if (pin != null && value != null) {
+                        displayedControls
+                            .filter { it.type == ControlType.AnalogRead && it.pin.uppercase() == pin }
+                            .forEach { control ->
+                                analogReadStates[control.id] = value
+                            }
+                    }
+                }
+            }
         }
     }
 
@@ -224,8 +246,18 @@ fun ControlsScreen(
                                     )
                                 }
 
-                                ControlType.ServoSlider,
                                 ControlType.AnalogRead -> {
+                                    AnalogReadControlCard(
+                                        control = control,
+                                        value = analogReadStates[control.id],
+                                        enabled = isConnected,
+                                        onRead = {
+                                            onReadAnalogControl(control)
+                                        },
+                                    )
+                                }
+
+                                ControlType.ServoSlider -> {
                                     FutureConfiguredControlCard(control = control)
                                 }
                             }
@@ -679,6 +711,132 @@ private fun PulseControlCard(
 }
 
 @Composable
+private fun AnalogReadControlCard(
+    control: LabLinkControl,
+    value: Int?,
+    enabled: Boolean,
+    onRead: () -> Unit,
+) {
+    val displayValue = value?.toString() ?: "--"
+    val percentage = value?.let { ((it.coerceIn(0, 1023) / 1023f) * 100).toInt() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.52f)
+            .background(CardDark, RoundedCornerShape(30.dp))
+            .border(
+                width = 1.dp,
+                color = if (value != null) AccentGreen.copy(alpha = 0.45f) else BorderSoft,
+                shape = RoundedCornerShape(30.dp),
+            )
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .background(AccentGreen.copy(alpha = 0.16f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.GraphicEq,
+                    contentDescription = null,
+                    tint = AccentGreen,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = control.name,
+                    color = WhiteSoft,
+                    fontSize = 18.sp,
+                    lineHeight = 23.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+
+                Spacer(modifier = Modifier.height(5.dp))
+
+                Text(
+                    text = "${control.pinLabel} • Leitura analógica",
+                    color = TextDim,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = displayValue,
+                color = WhiteSoft,
+                fontSize = 48.sp,
+                lineHeight = 54.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-0.8).sp,
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = if (percentage == null) "Aguardando leitura" else "$percentage% de 1023",
+                color = TextDim,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(68.dp)
+                .background(
+                    color = if (enabled) AccentGreen else Color.White.copy(alpha = 0.06f),
+                    shape = RoundedCornerShape(22.dp),
+                )
+                .border(
+                    width = 1.dp,
+                    color = if (enabled) AccentGreen.copy(alpha = 0.65f) else BorderSoft,
+                    shape = RoundedCornerShape(22.dp),
+                )
+                .clickable(enabled = enabled) { onRead() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "Ler agora",
+                color = if (enabled) Color.Black else TextDim,
+                fontSize = 18.sp,
+                lineHeight = 24.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+
+        Text(
+            text = if (enabled) {
+                "Ao tocar, o Arduino lê o valor analógico atual deste pino."
+            } else {
+                "Conecte o Bluetooth para fazer a leitura."
+            },
+            color = TextDim,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+        )
+    }
+}
+
+@Composable
 private fun FutureConfiguredControlCard(control: LabLinkControl) {
     Row(
         modifier = Modifier
@@ -939,6 +1097,7 @@ private fun ControlsScreenPreview() {
             onToggleDigitalControl = { _, _ -> },
             onSendPwmControl = { _, _ -> },
             onSendPulseControl = {},
+            onReadAnalogControl = { _ -> },
             onTurnLedOn = {},
             onTurnLedOff = {},
             onOpenHome = {},
@@ -950,6 +1109,7 @@ private fun ControlsScreenPreview() {
         )
     }
 }
+
 
 
 

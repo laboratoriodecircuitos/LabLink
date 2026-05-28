@@ -232,6 +232,13 @@ private fun LabLinkApp() {
                     )
                 )
             },
+            onReadAnalogControl = { control ->
+                sendCommand(
+                    ControlCommandMapper.analogReadCommand(
+                        control = control,
+                    )
+                )
+            },
             onTurnLedOn = {
                 sendCommand(
                     ControlCommandMapper.digitalToggleCommand(
@@ -273,6 +280,7 @@ private fun LabLinkApp() {
     }
 }
 }
+
 
 
 
