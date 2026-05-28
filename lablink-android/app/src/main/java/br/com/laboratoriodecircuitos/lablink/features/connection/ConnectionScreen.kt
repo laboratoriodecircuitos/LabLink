@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothConnectionStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPairingGuide
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothUiState
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkDrawer
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkTopAppBar
@@ -79,6 +80,7 @@ fun ConnectionScreen(
     onSelectDevice: (BluetoothDeviceInfo) -> Unit,
     onConnectSelectedDevice: () -> Unit,
     onDisconnectSelectedDevice: () -> Unit,
+    onStartPairingGuide: () -> Unit = {},
     onOpenHome: () -> Unit = {},
     onOpenConnection: () -> Unit = {},
     onOpenTerminal: () -> Unit = {},
@@ -179,6 +181,7 @@ fun ConnectionScreen(
                                 devices = bluetoothState.pairedDevices,
                                 onSelectDevice = onSelectDevice,
                                 onSearchAgain = onLoadPairedDevices,
+                                onStartPairingGuide = onStartPairingGuide,
                             )
                         }
 
@@ -186,6 +189,7 @@ fun ConnectionScreen(
                             StartSearchContent(
                                 onSearch = onLoadPairedDevices,
                                 onRefresh = onRefresh,
+                                onStartPairingGuide = onStartPairingGuide,
                             )
                         }
                     }
@@ -280,6 +284,7 @@ private fun ConnectionHeader(
 private fun StartSearchContent(
     onSearch: () -> Unit,
     onRefresh: () -> Unit,
+    onStartPairingGuide: () -> Unit,
 ) {
     StepCard(
         step = "Passo 1",
@@ -308,6 +313,7 @@ private fun DeviceSelectionContent(
     devices: List<BluetoothDeviceInfo>,
     onSelectDevice: (BluetoothDeviceInfo) -> Unit,
     onSearchAgain: () -> Unit,
+    onStartPairingGuide: () -> Unit,
 ) {
     StepCard(
         step = "Passo 2",
@@ -331,6 +337,10 @@ private fun DeviceSelectionContent(
     SecondaryActionButton(
         title = "Buscar novamente",
         onClick = onSearchAgain,
+    )
+
+    PairNewDeviceGuideCard(
+        onStartPairingGuide = onStartPairingGuide,
     )
 }
 
@@ -437,6 +447,90 @@ private fun ResponsiveActionButtons(
                 secondAction()
             }
         }
+    }
+}
+
+@Composable
+private fun PairNewDeviceGuideCard(
+    onStartPairingGuide: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CardDark, RoundedCornerShape(24.dp))
+            .border(1.dp, AccentPurple.copy(alpha = 0.32f), RoundedCornerShape(24.dp))
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .background(AccentPurple.copy(alpha = 0.16f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.BluetoothSearching,
+                    contentDescription = null,
+                    tint = AccentPurple,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = "Primeira vez usando o módulo?",
+                    color = WhiteSoft,
+                    fontSize = 17.sp,
+                    lineHeight = 23.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Pareie o HC-05/HC-06 antes de conectar.",
+                    color = TextDim,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+            }
+        }
+
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            BluetoothPairingGuide.preparationSteps.forEach { step ->
+                Text(
+                    text = "• $step",
+                    color = WhiteSoft.copy(alpha = 0.78f),
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+            }
+        }
+
+        Text(
+            text = "Na próxima etapa, este botão vai iniciar a busca por módulos próximos.",
+            color = TextDim,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+        )
+
+        PrimaryActionButton(
+            title = BluetoothPairingGuide.pairingButtonLabel,
+            subtitle = "Iniciar pareamento assistido",
+            icon = Icons.Rounded.BluetoothSearching,
+            backgroundColor = AccentPurple,
+            contentColor = Color.Black,
+            onClick = onStartPairingGuide,
+        )
     }
 }
 
@@ -704,6 +798,7 @@ private fun ConnectionScreenPreview() {
             onSelectDevice = {},
             onConnectSelectedDevice = {},
             onDisconnectSelectedDevice = {},
+            onStartPairingGuide = {},
             onOpenHome = {},
             onOpenConnection = {},
             onOpenTerminal = {},
@@ -712,6 +807,7 @@ private fun ConnectionScreenPreview() {
         )
     }
 }
+
 
 
 
