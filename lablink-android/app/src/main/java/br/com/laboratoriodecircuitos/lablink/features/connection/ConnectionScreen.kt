@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -348,18 +349,23 @@ private fun SelectedDeviceContent(
         iconColor = AccentYellow,
     )
 
-    PrimaryActionButton(
-        title = if (status == BluetoothConnectionStatus.Connecting) "Conectando..." else "Conectar ao ${device.name}",
-        subtitle = "Abrir comunicação Bluetooth",
-        icon = Icons.Rounded.Link,
-        backgroundColor = AccentYellow,
-        enabled = status != BluetoothConnectionStatus.Connecting,
-        onClick = onConnect,
-    )
-
-    SecondaryActionButton(
-        title = "Escolher outro dispositivo",
-        onClick = onSearchAgain,
+    ResponsiveActionButtons(
+        firstAction = {
+            PrimaryActionButton(
+                title = if (status == BluetoothConnectionStatus.Connecting) "Conectando..." else "Conectar",
+                subtitle = device.name,
+                icon = Icons.Rounded.Link,
+                backgroundColor = AccentYellow,
+                enabled = status != BluetoothConnectionStatus.Connecting,
+                onClick = onConnect,
+            )
+        },
+        secondAction = {
+            SecondaryActionButton(
+                title = "Escolher outro",
+                onClick = onSearchAgain,
+            )
+        },
     )
 }
 
@@ -377,23 +383,61 @@ private fun ConnectedContent(
         iconColor = AccentGreen,
     )
 
-    PrimaryActionButton(
-        title = "Desconectar",
-        subtitle = "Encerrar conexão Bluetooth",
-        icon = Icons.Rounded.Bluetooth,
-        backgroundColor = CardDark,
-        contentColor = WhiteSoft,
-        border = true,
-        onClick = onDisconnect,
+    ResponsiveActionButtons(
+        firstAction = {
+            PrimaryActionButton(
+                title = "Desconectar",
+                subtitle = "Encerrar conexão",
+                icon = Icons.Rounded.Bluetooth,
+                backgroundColor = CardDark,
+                contentColor = WhiteSoft,
+                border = true,
+                onClick = onDisconnect,
+            )
+        },
+        secondAction = {
+            PrimaryActionButton(
+                title = "Ir para Controles",
+                subtitle = "Controlar projeto",
+                icon = Icons.Rounded.Tune,
+                backgroundColor = AccentGreen,
+                onClick = onOpenControls,
+            )
+        },
     )
+}
 
-    PrimaryActionButton(
-        title = "Ir para Controles",
-        subtitle = "PING, LED ON e LED OFF",
-        icon = Icons.Rounded.Tune,
-        backgroundColor = AccentGreen,
-        onClick = onOpenControls,
-    )
+@Composable
+private fun ResponsiveActionButtons(
+    firstAction: @Composable () -> Unit,
+    secondAction: @Composable () -> Unit,
+) {
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        if (maxWidth >= 600.dp) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    firstAction()
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    secondAction()
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                firstAction()
+                secondAction()
+            }
+        }
+    }
 }
 
 @Composable
@@ -668,6 +712,8 @@ private fun ConnectionScreenPreview() {
         )
     }
 }
+
+
 
 
 

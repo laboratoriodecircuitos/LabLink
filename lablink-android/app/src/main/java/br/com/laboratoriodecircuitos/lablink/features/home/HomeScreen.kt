@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -96,26 +97,31 @@ fun LabLinkHomeScreen(
                 ) {
                     GreetingSection()
 
-                    HomeActionCard(
-                        title = if (isBluetoothConnected) "Dispositivo conectado" else "Conectar dispositivo",
-                        subtitle = if (isBluetoothConnected) {
-                            connectedDeviceName ?: "Módulo Bluetooth conectado"
-                        } else {
-                            "Buscar e conectar o módulo Bluetooth do seu projeto."
+                    ResponsiveHomeActions(
+                        firstAction = {
+                            HomeActionCard(
+                                title = if (isBluetoothConnected) "Dispositivo conectado" else "Conectar dispositivo",
+                                subtitle = if (isBluetoothConnected) {
+                                    connectedDeviceName ?: "Módulo Bluetooth conectado"
+                                } else {
+                                    "Buscar e conectar o módulo Bluetooth do seu projeto."
+                                },
+                                icon = if (isBluetoothConnected) Icons.Rounded.Check else Icons.Rounded.Bluetooth,
+                                backgroundColor = if (isBluetoothConnected) AccentGreen else AccentPurple,
+                                contentColor = Color.Black,
+                                onClick = onOpenConnection,
+                            )
                         },
-                        icon = if (isBluetoothConnected) Icons.Rounded.Check else Icons.Rounded.Bluetooth,
-                        backgroundColor = if (isBluetoothConnected) AccentGreen else AccentPurple,
-                        contentColor = Color.Black,
-                        onClick = onOpenConnection,
-                    )
-
-                    HomeActionCard(
-                        title = "Meu controle",
-                        subtitle = "Controlar a saída configurada no Arduino.",
-                        icon = Icons.Rounded.Tune,
-                        backgroundColor = AccentYellow,
-                        contentColor = Color.Black,
-                        onClick = onOpenControls,
+                        secondAction = {
+                            HomeActionCard(
+                                title = "Meu controle",
+                                subtitle = "Controlar a saída configurada no Arduino.",
+                                icon = Icons.Rounded.Tune,
+                                backgroundColor = AccentYellow,
+                                contentColor = Color.Black,
+                                onClick = onOpenControls,
+                            )
+                        },
                     )
 
                     SmallHintCard(
@@ -193,6 +199,39 @@ private fun GreetingSection() {
             fontSize = 16.sp,
             lineHeight = 24.sp,
         )
+    }
+}
+
+@Composable
+private fun ResponsiveHomeActions(
+    firstAction: @Composable () -> Unit,
+    secondAction: @Composable () -> Unit,
+) {
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        if (maxWidth >= 600.dp) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    firstAction()
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    secondAction()
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                firstAction()
+                secondAction()
+            }
+        }
     }
 }
 
@@ -284,4 +323,5 @@ private fun LabLinkHomeScreenPreview() {
         )
     }
 }
+
 
