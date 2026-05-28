@@ -55,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothConnectionStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDiscoveredDevice
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDiscoveryStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPairingGuide
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothUiState
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkDrawer
@@ -73,6 +75,8 @@ private val BorderSoft = Color.White.copy(alpha = 0.06f)
 @Composable
 fun ConnectionScreen(
     bluetoothState: BluetoothUiState,
+    discoveryStatus: BluetoothDiscoveryStatus = BluetoothDiscoveryStatus.Idle,
+    discoveredDevices: List<BluetoothDiscoveredDevice> = emptyList(),
     developmentNotes: List<String>,
     onRequestPermissions: () -> Unit,
     onRefresh: () -> Unit,
@@ -181,6 +185,8 @@ fun ConnectionScreen(
                                 devices = bluetoothState.pairedDevices,
                                 onSelectDevice = onSelectDevice,
                                 onSearchAgain = onLoadPairedDevices,
+                                discoveryStatus = discoveryStatus,
+                                discoveredDevices = discoveredDevices,
                                 onStartPairingGuide = onStartPairingGuide,
                             )
                         }
@@ -189,6 +195,8 @@ fun ConnectionScreen(
                             StartSearchContent(
                                 onSearch = onLoadPairedDevices,
                                 onRefresh = onRefresh,
+                                discoveryStatus = discoveryStatus,
+                                discoveredDevices = discoveredDevices,
                                 onStartPairingGuide = onStartPairingGuide,
                             )
                         }
@@ -284,6 +292,8 @@ private fun ConnectionHeader(
 private fun StartSearchContent(
     onSearch: () -> Unit,
     onRefresh: () -> Unit,
+    discoveryStatus: BluetoothDiscoveryStatus,
+    discoveredDevices: List<BluetoothDiscoveredDevice>,
     onStartPairingGuide: () -> Unit,
 ) {
     StepCard(
@@ -313,6 +323,8 @@ private fun DeviceSelectionContent(
     devices: List<BluetoothDeviceInfo>,
     onSelectDevice: (BluetoothDeviceInfo) -> Unit,
     onSearchAgain: () -> Unit,
+    discoveryStatus: BluetoothDiscoveryStatus,
+    discoveredDevices: List<BluetoothDiscoveredDevice>,
     onStartPairingGuide: () -> Unit,
 ) {
     StepCard(
@@ -340,6 +352,8 @@ private fun DeviceSelectionContent(
     )
 
     PairNewDeviceGuideCard(
+        discoveryStatus = discoveryStatus,
+        discoveredDevices = discoveredDevices,
         onStartPairingGuide = onStartPairingGuide,
     )
 }
@@ -452,6 +466,8 @@ private fun ResponsiveActionButtons(
 
 @Composable
 private fun PairNewDeviceGuideCard(
+    discoveryStatus: BluetoothDiscoveryStatus,
+    discoveredDevices: List<BluetoothDiscoveredDevice>,
     onStartPairingGuide: () -> Unit,
 ) {
     Column(
@@ -517,23 +533,118 @@ private fun PairNewDeviceGuideCard(
         }
 
         Text(
-            text = "Na próxima etapa, este botão vai iniciar a busca por módulos próximos.",
+            text = when (discoveryStatus) {
+                BluetoothDiscoveryStatus.Idle -> "Toque no botão para procurar módulos próximos."
+                BluetoothDiscoveryStatus.PermissionRequired -> "O Android precisa permitir a busca Bluetooth para encontrar módulos próximos."
+                BluetoothDiscoveryStatus.BluetoothDisabled -> "Ative o Bluetooth do celular para buscar módulos próximos."
+                BluetoothDiscoveryStatus.Scanning -> "Buscando módulos próximos..."
+                BluetoothDiscoveryStatus.Finished -> if (discoveredDevices.isEmpty()) {
+                    "Busca concluída. Nenhum dispositivo encontrado. Confira se o LED do HC-05/HC-06 está piscando."
+                } else {
+                    "Busca concluída. O pareamento será habilitado na próxima etapa."
+                }
+                BluetoothDiscoveryStatus.Error -> "Não foi possível concluir a busca. Confira permissões e Bluetooth."
+            },
             color = TextDim,
             fontSize = 12.sp,
             lineHeight = 17.sp,
         )
 
+        if (discoveredDevices.isNotEmpty()) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                discoveredDevices.forEach { discoveredDevice ->
+                    DiscoveredDeviceItem(device = discoveredDevice)
+                }
+            }
+        }
+
         PrimaryActionButton(
-            title = BluetoothPairingGuide.pairingButtonLabel,
-            subtitle = "Iniciar pareamento assistido",
+            title = if (discoveryStatus == BluetoothDiscoveryStatus.Scanning) {
+                "Buscando..."
+            } else {
+                BluetoothPairingGuide.pairingButtonLabel
+            },
+            subtitle = if (discoveryStatus == BluetoothDiscoveryStatus.Scanning) {
+                "Aguarde a busca terminar"
+            } else {
+                "Encontrar módulos próximos"
+            },
             icon = Icons.Rounded.BluetoothSearching,
             backgroundColor = AccentPurple,
             contentColor = Color.Black,
+            enabled = discoveryStatus != BluetoothDiscoveryStatus.Scanning,
             onClick = onStartPairingGuide,
         )
     }
 }
 
+@Composable
+private fun DiscoveredDeviceItem(device: BluetoothDiscoveredDevice) {
+    val isLikelyModule = device.isLikelyLabLinkModule
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.055f), RoundedCornerShape(18.dp))
+            .border(
+                width = 1.dp,
+                color = if (isLikelyModule) AccentGreen.copy(alpha = 0.45f) else BorderSoft,
+                shape = RoundedCornerShape(18.dp),
+            )
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .background(
+                    color = if (isLikelyModule) AccentGreen.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.08f),
+                    shape = CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Devices,
+                contentDescription = null,
+                tint = if (isLikelyModule) AccentGreen else TextDim,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                text = device.name,
+                color = WhiteSoft,
+                fontSize = 15.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+
+            Spacer(modifier = Modifier.height(3.dp))
+
+            Text(
+                text = device.address,
+                color = TextDim,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
+
+        Text(
+            text = if (isLikelyModule) "HC" else "BT",
+            color = if (isLikelyModule) AccentGreen else TextDim,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
 @Composable
 private fun StepCard(
     step: String,
@@ -807,6 +918,7 @@ private fun ConnectionScreenPreview() {
         )
     }
 }
+
 
 
 

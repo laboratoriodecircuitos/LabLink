@@ -3,21 +3,29 @@
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothConnectionStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDiscoveredDevice
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDiscoveryController
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDiscoveryStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPermissionHelper
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPermissionRequirements
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothService
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlCommandMapper
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlStorage
@@ -54,6 +62,7 @@ private enum class LabLinkScreen {
 private fun LabLinkApp() {
     val context = LocalContext.current
     val bluetoothService = remember { LabLinkBluetoothService() }
+    val bluetoothDiscoveryController = remember { BluetoothDiscoveryController() }
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
 
     var currentScreen by remember { mutableStateOf(LabLinkScreen.Home) }
@@ -67,6 +76,20 @@ private fun LabLinkApp() {
 
     var controlsRefreshKey by remember {
         mutableIntStateOf(0)
+    }
+
+    var discoveryStatus by remember {
+        mutableStateOf(BluetoothDiscoveryStatus.Idle)
+    }
+
+    val discoveredDevices = remember {
+        mutableStateListOf<BluetoothDiscoveredDevice>()
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            bluetoothDiscoveryController.stopDiscovery(context.applicationContext)
+        }
     }
 
     val isBluetoothConnectedForUi =
@@ -130,6 +153,73 @@ private fun LabLinkApp() {
         }.start()
     }
 
+    fun hasDiscoveryPermissions(): Boolean {
+        return BluetoothPermissionRequirements.discoveryPermissions().all { permission ->
+            ContextCompat.checkSelfPermission(
+                context,
+                permission,
+            ) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    fun startBluetoothDiscovery() {
+        discoveredDevices.clear()
+        discoveryStatus = BluetoothDiscoveryStatus.Scanning
+
+        bluetoothDiscoveryController.startDiscovery(
+            context = context.applicationContext,
+            onDeviceFound = { discoveredDevice ->
+                mainHandler.post {
+                    val existingIndex = discoveredDevices.indexOfFirst { existing ->
+                        existing.address == discoveredDevice.address
+                    }
+
+                    if (existingIndex >= 0) {
+                        discoveredDevices[existingIndex] = discoveredDevice
+                    } else {
+                        discoveredDevices.add(discoveredDevice)
+                    }
+                }
+            },
+            onFinished = {
+                mainHandler.post {
+                    discoveryStatus = BluetoothDiscoveryStatus.Finished
+                }
+            },
+            onError = { message ->
+                mainHandler.post {
+                    discoveryStatus = BluetoothDiscoveryStatus.Error
+                    bluetoothState = bluetoothState.copy(message = message)
+                }
+            },
+        )
+    }
+
+    val discoveryPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { permissions ->
+        val allGranted = permissions.values.all { granted -> granted }
+
+        if (allGranted) {
+            startBluetoothDiscovery()
+        } else {
+            discoveryStatus = BluetoothDiscoveryStatus.PermissionRequired
+            bluetoothState = bluetoothState.copy(
+                message = "Permissão Bluetooth necessária para encontrar módulos próximos.",
+            )
+        }
+    }
+
+    fun requestDiscoveryPermissionOrStartSearch() {
+        if (hasDiscoveryPermissions()) {
+            startBluetoothDiscovery()
+        } else {
+            discoveryStatus = BluetoothDiscoveryStatus.PermissionRequired
+            discoveryPermissionLauncher.launch(
+                BluetoothPermissionRequirements.discoveryPermissions(),
+            )
+        }
+    }
     when (currentScreen) {
         LabLinkScreen.Home -> LabLinkHomeScreen(
             isBluetoothConnected = isBluetoothConnectedForUi,
@@ -145,6 +235,8 @@ private fun LabLinkApp() {
 
         LabLinkScreen.Connection -> ConnectionScreen(
             bluetoothState = bluetoothState,
+            discoveryStatus = discoveryStatus,
+            discoveredDevices = discoveredDevices,
             developmentNotes = bluetoothService.getDevelopmentNotes(),
             onRequestPermissions = {
                 permissionLauncher.launch(BluetoothPermissionHelper.requiredPermissions())
@@ -163,6 +255,9 @@ private fun LabLinkApp() {
             },
             onDisconnectSelectedDevice = {
                 disconnectSelectedDevice()
+            },
+            onStartPairingGuide = {
+                requestDiscoveryPermissionOrStartSearch()
             },
             onOpenHome = { currentScreen = LabLinkScreen.Home },
             onOpenConnection = {
@@ -280,6 +375,9 @@ private fun LabLinkApp() {
     }
 }
 }
+
+
+
 
 
 
