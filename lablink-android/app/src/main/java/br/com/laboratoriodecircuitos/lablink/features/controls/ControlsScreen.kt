@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -195,17 +196,12 @@ SelectedBoardPanelCard(selectedBoard = selectedBoard)
 if (displayedControls.isEmpty()) {
                         Spacer(modifier = Modifier.height(520.dp))
                     } else {
-                        displayedControls.chunked(2).forEach { rowControls ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                rowControls.forEach { control ->
-                                    Box(
-                                        modifier = Modifier.weight(1f),
-                                    ) {
-
-                            when (control.type) {
+                        PanelWidgetRows(
+                            controls = displayedControls.filter { it.type == ControlType.DigitalToggle },
+                            columns = 3,
+                            fillRow = false,
+                        ) { control ->
+when (control.type) {
                                 ControlType.DigitalToggle -> {
                                     DigitalOutputControlCard(
                                         control = control,
@@ -276,15 +272,314 @@ if (displayedControls.isEmpty()) {
                                     FutureConfiguredControlCard(control = control)
                                 }
                             }
-                        
-                                    }
+                        }
+                        PanelWidgetRows(
+                            controls = displayedControls.filter { it.type == ControlType.PwmSlider },
+                            columns = 1,
+                            fillRow = true,
+                        ) { control ->
+when (control.type) {
+                                ControlType.DigitalToggle -> {
+                                    DigitalOutputControlCard(
+                                        control = control,
+                                        isOn = digitalStates[control.id] == true,
+                                        enabled = isConnected,
+                                        onToggle = {
+                                            val newState = !(digitalStates[control.id] ?: false)
+                                            digitalStates[control.id] = newState
+
+                                            onToggleDigitalControl(control, newState)
+                                        },
+                                    )
                                 }
 
-                                if (rowControls.size == 1) {
-                                    Spacer(modifier = Modifier.weight(1f))
+                                ControlType.PwmSlider -> {
+                                    PwmSliderControlCard(
+                                        control = control,
+                                        value = pwmStates[control.id] ?: control.currentValue ?: 0,
+                                        enabled = isConnected,
+                                        onValueChange = { newValue ->
+                                            pwmStates[control.id] = newValue
+
+                                            val now = System.currentTimeMillis()
+                                            val lastSentAt = pwmLastSentAt[control.id] ?: 0L
+                                            val shouldSendNow = now - lastSentAt >= 45L
+
+                                            if (shouldSendNow) {
+                                                pwmLastSentAt[control.id] = now
+                                                pwmLastSentValues[control.id] = newValue
+                                                onSendPwmControl(control, newValue)
+                                            }
+                                        },
+                                        onValueChangeFinished = {
+                                            val finalValue = pwmStates[control.id] ?: control.currentValue ?: 0
+                                            val lastSentValue = pwmLastSentValues[control.id]
+
+                                            if (lastSentValue != finalValue) {
+                                                pwmLastSentAt[control.id] = System.currentTimeMillis()
+                                                pwmLastSentValues[control.id] = finalValue
+                                                onSendPwmControl(control, finalValue)
+                                            }
+                                        },
+                                    )
+                                }
+
+                                ControlType.PulseButton -> {
+                                    PulseControlCard(
+                                        control = control,
+                                        enabled = isConnected,
+                                        onPulse = {
+                                            onSendPulseControl(control)
+                                        },
+                                    )
+                                }
+
+                                ControlType.AnalogRead -> {
+                                    AnalogReadControlCard(
+                                        control = control,
+                                        value = analogReadStates[control.id],
+                                        enabled = isConnected,
+                                        onRead = {
+                                            onReadAnalogControl(control)
+                                        },
+                                    )
+                                }
+
+                                ControlType.ServoSlider -> {
+                                    FutureConfiguredControlCard(control = control)
                                 }
                             }
                         }
+                        PanelWidgetRows(
+                            controls = displayedControls.filter { it.type == ControlType.PulseButton },
+                            columns = 3,
+                        ) { control ->
+when (control.type) {
+                                ControlType.DigitalToggle -> {
+                                    DigitalOutputControlCard(
+                                        control = control,
+                                        isOn = digitalStates[control.id] == true,
+                                        enabled = isConnected,
+                                        onToggle = {
+                                            val newState = !(digitalStates[control.id] ?: false)
+                                            digitalStates[control.id] = newState
+
+                                            onToggleDigitalControl(control, newState)
+                                        },
+                                    )
+                                }
+
+                                ControlType.PwmSlider -> {
+                                    PwmSliderControlCard(
+                                        control = control,
+                                        value = pwmStates[control.id] ?: control.currentValue ?: 0,
+                                        enabled = isConnected,
+                                        onValueChange = { newValue ->
+                                            pwmStates[control.id] = newValue
+
+                                            val now = System.currentTimeMillis()
+                                            val lastSentAt = pwmLastSentAt[control.id] ?: 0L
+                                            val shouldSendNow = now - lastSentAt >= 45L
+
+                                            if (shouldSendNow) {
+                                                pwmLastSentAt[control.id] = now
+                                                pwmLastSentValues[control.id] = newValue
+                                                onSendPwmControl(control, newValue)
+                                            }
+                                        },
+                                        onValueChangeFinished = {
+                                            val finalValue = pwmStates[control.id] ?: control.currentValue ?: 0
+                                            val lastSentValue = pwmLastSentValues[control.id]
+
+                                            if (lastSentValue != finalValue) {
+                                                pwmLastSentAt[control.id] = System.currentTimeMillis()
+                                                pwmLastSentValues[control.id] = finalValue
+                                                onSendPwmControl(control, finalValue)
+                                            }
+                                        },
+                                    )
+                                }
+
+                                ControlType.PulseButton -> {
+                                    PulseControlCard(
+                                        control = control,
+                                        enabled = isConnected,
+                                        onPulse = {
+                                            onSendPulseControl(control)
+                                        },
+                                    )
+                                }
+
+                                ControlType.AnalogRead -> {
+                                    AnalogReadControlCard(
+                                        control = control,
+                                        value = analogReadStates[control.id],
+                                        enabled = isConnected,
+                                        onRead = {
+                                            onReadAnalogControl(control)
+                                        },
+                                    )
+                                }
+
+                                ControlType.ServoSlider -> {
+                                    FutureConfiguredControlCard(control = control)
+                                }
+                            }
+                        }
+                        PanelWidgetRows(
+                            controls = displayedControls.filter { it.type == ControlType.ServoSlider },
+                            columns = 1,
+                        ) { control ->
+when (control.type) {
+                                ControlType.DigitalToggle -> {
+                                    DigitalOutputControlCard(
+                                        control = control,
+                                        isOn = digitalStates[control.id] == true,
+                                        enabled = isConnected,
+                                        onToggle = {
+                                            val newState = !(digitalStates[control.id] ?: false)
+                                            digitalStates[control.id] = newState
+
+                                            onToggleDigitalControl(control, newState)
+                                        },
+                                    )
+                                }
+
+                                ControlType.PwmSlider -> {
+                                    PwmSliderControlCard(
+                                        control = control,
+                                        value = pwmStates[control.id] ?: control.currentValue ?: 0,
+                                        enabled = isConnected,
+                                        onValueChange = { newValue ->
+                                            pwmStates[control.id] = newValue
+
+                                            val now = System.currentTimeMillis()
+                                            val lastSentAt = pwmLastSentAt[control.id] ?: 0L
+                                            val shouldSendNow = now - lastSentAt >= 45L
+
+                                            if (shouldSendNow) {
+                                                pwmLastSentAt[control.id] = now
+                                                pwmLastSentValues[control.id] = newValue
+                                                onSendPwmControl(control, newValue)
+                                            }
+                                        },
+                                        onValueChangeFinished = {
+                                            val finalValue = pwmStates[control.id] ?: control.currentValue ?: 0
+                                            val lastSentValue = pwmLastSentValues[control.id]
+
+                                            if (lastSentValue != finalValue) {
+                                                pwmLastSentAt[control.id] = System.currentTimeMillis()
+                                                pwmLastSentValues[control.id] = finalValue
+                                                onSendPwmControl(control, finalValue)
+                                            }
+                                        },
+                                    )
+                                }
+
+                                ControlType.PulseButton -> {
+                                    PulseControlCard(
+                                        control = control,
+                                        enabled = isConnected,
+                                        onPulse = {
+                                            onSendPulseControl(control)
+                                        },
+                                    )
+                                }
+
+                                ControlType.AnalogRead -> {
+                                    AnalogReadControlCard(
+                                        control = control,
+                                        value = analogReadStates[control.id],
+                                        enabled = isConnected,
+                                        onRead = {
+                                            onReadAnalogControl(control)
+                                        },
+                                    )
+                                }
+
+                                ControlType.ServoSlider -> {
+                                    FutureConfiguredControlCard(control = control)
+                                }
+                            }
+                        }
+                        PanelWidgetRows(
+                            controls = displayedControls.filter { it.type == ControlType.AnalogRead },
+                            columns = 3,
+                            fillRow = false,
+                        ) { control ->
+when (control.type) {
+                                ControlType.DigitalToggle -> {
+                                    DigitalOutputControlCard(
+                                        control = control,
+                                        isOn = digitalStates[control.id] == true,
+                                        enabled = isConnected,
+                                        onToggle = {
+                                            val newState = !(digitalStates[control.id] ?: false)
+                                            digitalStates[control.id] = newState
+
+                                            onToggleDigitalControl(control, newState)
+                                        },
+                                    )
+                                }
+
+                                ControlType.PwmSlider -> {
+                                    PwmSliderControlCard(
+                                        control = control,
+                                        value = pwmStates[control.id] ?: control.currentValue ?: 0,
+                                        enabled = isConnected,
+                                        onValueChange = { newValue ->
+                                            pwmStates[control.id] = newValue
+
+                                            val now = System.currentTimeMillis()
+                                            val lastSentAt = pwmLastSentAt[control.id] ?: 0L
+                                            val shouldSendNow = now - lastSentAt >= 45L
+
+                                            if (shouldSendNow) {
+                                                pwmLastSentAt[control.id] = now
+                                                pwmLastSentValues[control.id] = newValue
+                                                onSendPwmControl(control, newValue)
+                                            }
+                                        },
+                                        onValueChangeFinished = {
+                                            val finalValue = pwmStates[control.id] ?: control.currentValue ?: 0
+                                            val lastSentValue = pwmLastSentValues[control.id]
+
+                                            if (lastSentValue != finalValue) {
+                                                pwmLastSentAt[control.id] = System.currentTimeMillis()
+                                                pwmLastSentValues[control.id] = finalValue
+                                                onSendPwmControl(control, finalValue)
+                                            }
+                                        },
+                                    )
+                                }
+
+                                ControlType.PulseButton -> {
+                                    PulseControlCard(
+                                        control = control,
+                                        enabled = isConnected,
+                                        onPulse = {
+                                            onSendPulseControl(control)
+                                        },
+                                    )
+                                }
+
+                                ControlType.AnalogRead -> {
+                                    AnalogReadControlCard(
+                                        control = control,
+                                        value = analogReadStates[control.id],
+                                        enabled = isConnected,
+                                        onRead = {
+                                            onReadAnalogControl(control)
+                                        },
+                                    )
+                                }
+
+                                ControlType.ServoSlider -> {
+                                    FutureConfiguredControlCard(control = control)
+                                }
+                            }
+                        }
+
                     }
 
                     if (!isConnected) {
@@ -1397,6 +1692,60 @@ private fun WorkspaceAddButton(
                 tint = Color.Black,
                 modifier = Modifier.size(28.dp),
             )
+        }
+    }
+}
+
+
+@Composable
+private fun PanelWidgetRows(
+    controls: List<LabLinkControl>,
+    columns: Int,
+    fillRow: Boolean = false,
+    content: @Composable (LabLinkControl) -> Unit,
+) {
+    if (controls.isEmpty()) {
+        return
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        val spacing = 10.dp
+        val cellSize = (maxWidth - (spacing * 2)) / 3
+
+        controls.chunked(columns).forEach { rowControls ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing),
+                verticalAlignment = Alignment.Top,
+            ) {
+                rowControls.forEach { control ->
+                    Box(
+                        modifier = if (fillRow) {
+                            Modifier
+                                .fillMaxWidth()
+                                .height(cellSize)
+                        } else {
+                            Modifier
+                                .weight(1f)
+                                .height(cellSize)
+                        },
+                    ) {
+                        content(control)
+                    }
+                }
+
+                if (!fillRow) {
+                    repeat(columns - rowControls.size) {
+                        Spacer(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(cellSize),
+                        )
+                    }
+                }
+            }
         }
     }
 }
