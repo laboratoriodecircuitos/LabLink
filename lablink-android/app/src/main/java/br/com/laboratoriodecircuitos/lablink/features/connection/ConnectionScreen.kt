@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -301,21 +302,38 @@ private fun StartSearchContent(
     onStartPairingGuide: () -> Unit,
     onPairDiscoveredDevice: (BluetoothDiscoveredDevice) -> Unit,
 ) {
+    val isPairingFlowOpen =
+        discoveryStatus != BluetoothDiscoveryStatus.Idle || discoveredDevices.isNotEmpty()
 
-    PrimaryActionButton(
-        title = "Buscar módulos pareados",
-        subtitle = "Mostrar módulos já salvos no Android",
-        icon = Icons.Rounded.BluetoothSearching,
-        backgroundColor = AccentPurple,
-        onClick = onSearch,
-    )
+    if (isPairingFlowOpen) {
+        PairNewDeviceGuideCard(
+            discoveryStatus = discoveryStatus,
+            discoveredDevices = discoveredDevices,
+            onStartPairingGuide = onStartPairingGuide,
+            onPairDiscoveredDevice = onPairDiscoveredDevice,
+        )
+    } else {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            BluetoothChoiceButton(
+                title = "Buscar módulos pareados",
+                icon = Icons.Rounded.Bluetooth,
+                backgroundColor = AccentPurple,
+                contentColor = Color.Black,
+                onClick = onSearch,
+            )
 
-    PairNewDeviceGuideCard(
-        discoveryStatus = discoveryStatus,
-        discoveredDevices = discoveredDevices,
-        onStartPairingGuide = onStartPairingGuide,
-        onPairDiscoveredDevice = onPairDiscoveredDevice,
-    )
+            BluetoothChoiceButton(
+                title = "Parear novo módulo",
+                icon = Icons.Rounded.BluetoothSearching,
+                backgroundColor = AccentYellow,
+                contentColor = Color.Black,
+                onClick = onStartPairingGuide,
+            )
+        }
+    }
 
     SecondaryActionButton(
         title = "Atualizar status do Bluetooth",
@@ -323,6 +341,48 @@ private fun StartSearchContent(
     )
 }
 
+@Composable
+private fun BluetoothChoiceButton(
+    title: String,
+    icon: ImageVector,
+    backgroundColor: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 76.dp)
+            .background(backgroundColor, RoundedCornerShape(24.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(contentColor.copy(alpha = 0.12f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+
+        Text(
+            text = title,
+            color = contentColor,
+            fontSize = 17.sp,
+            lineHeight = 22.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
 @Composable
 private fun DeviceSelectionContent(
     devices: List<BluetoothDeviceInfo>,
@@ -941,6 +1001,8 @@ private fun ConnectionScreenPreview() {
         )
     }
 }
+
+
 
 
 
