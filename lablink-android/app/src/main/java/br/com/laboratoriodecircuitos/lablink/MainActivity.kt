@@ -574,6 +574,7 @@ private fun LabLinkApp() {
         LabLinkScreen.Controls -> key(controlsRefreshKey) {
             ControlsScreen(
                 bluetoothState = bluetoothState,
+                selectedBoard = selectedBoard,
                 controls = configuredControls,
                 controlsRefreshKey = controlsRefreshKey,
                 onSendPing = { sendCommand("PING") },
@@ -649,6 +650,8 @@ private fun LabLinkApp() {
     }
 }
 }
+
+
 
 
 

@@ -57,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.com.laboratoriodecircuitos.lablink.core.boards.BoardProfile
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothConnectionStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothUiState
@@ -79,6 +80,7 @@ private val BorderSoft = Color.White.copy(alpha = 0.06f)
 @Composable
 fun ControlsScreen(
     bluetoothState: BluetoothUiState,
+    selectedBoard: BoardProfile? = null,
     controls: List<LabLinkControl> = listOf(DefaultControls.pin13DigitalOutput),
     controlsRefreshKey: Int = 0,
     onSendPing: () -> Unit,
@@ -189,6 +191,8 @@ fun ControlsScreen(
                         isConnected = isConnected,
                         hasCustomControls = hasCustomControls,
                     )
+
+                    SelectedBoardPanelCard(selectedBoard = selectedBoard)
 
                     if (displayedControls.isEmpty()) {
                         EmptyControlsCard(onCreateControl = onCreateControl)
@@ -1084,6 +1088,48 @@ private fun ControlType.accentColor(): Color {
     }
 }
 
+
+@Composable
+private fun SelectedBoardPanelCard(
+    selectedBoard: BoardProfile?,
+) {
+    if (selectedBoard == null) {
+        return
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CardDark, RoundedCornerShape(24.dp))
+            .border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        Text(
+            text = "Placa do painel",
+            color = TextDim,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            fontWeight = FontWeight.Medium,
+        )
+
+        Text(
+            text = selectedBoard.displayName,
+            color = WhiteSoft,
+            fontSize = 18.sp,
+            lineHeight = 23.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+
+        Text(
+            text = "Os controles deste painel usam os pinos disponíveis para esta placa.",
+            color = TextDim,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+        )
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 private fun ControlsScreenPreview() {
@@ -1115,6 +1161,8 @@ private fun ControlsScreenPreview() {
         )
     }
 }
+
+
 
 
 
