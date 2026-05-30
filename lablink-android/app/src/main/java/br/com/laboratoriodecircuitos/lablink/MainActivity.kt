@@ -33,10 +33,12 @@ import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPermissionR
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPairingStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothConnectionManager
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothForegroundService
+import br.com.laboratoriodecircuitos.lablink.core.boards.BoardSelectionStorage
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlCommandMapper
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlStorage
 import br.com.laboratoriodecircuitos.lablink.core.controls.DefaultControls
 import br.com.laboratoriodecircuitos.lablink.core.controls.LabLinkControl
+import br.com.laboratoriodecircuitos.lablink.features.boardselection.BoardSelectionScreen
 import br.com.laboratoriodecircuitos.lablink.features.connection.ConnectionScreen
 import br.com.laboratoriodecircuitos.lablink.features.controls.ControlsScreen
 import br.com.laboratoriodecircuitos.lablink.features.createcontrol.CreateControlScreen
@@ -59,6 +61,7 @@ class MainActivity : ComponentActivity() {
 private enum class LabLinkScreen {
     Home,
     Connection,
+    BoardSelection,
     Terminal,
     Controls,
     CreateControl,
@@ -78,6 +81,10 @@ private fun LabLinkApp() {
 
     var configuredControls by remember {
         mutableStateOf(ControlStorage.loadControls(context))
+    }
+
+    var selectedBoard by remember {
+        mutableStateOf(BoardSelectionStorage.loadBoard(context))
     }
 
     var controlsRefreshKey by remember {
@@ -167,6 +174,17 @@ private fun LabLinkApp() {
         }
     }
 
+    fun openControlsRespectingBoard() {
+        currentScreen = if (
+            bluetoothState.status == BluetoothConnectionStatus.Connected &&
+            selectedBoard == null
+        ) {
+            LabLinkScreen.BoardSelection
+        } else {
+            LabLinkScreen.Controls
+        }
+    }
+
     fun connectSelectedDevice() {
         val stateBeforeConnection = bluetoothService.connectingState(bluetoothState)
         bluetoothState = stateBeforeConnection
@@ -182,6 +200,12 @@ private fun LabLinkApp() {
 
                 if (resultState.status == BluetoothConnectionStatus.Connected) {
                     startBluetoothForegroundServiceWithGuide()
+
+                    currentScreen = if (selectedBoard == null) {
+                        LabLinkScreen.BoardSelection
+                    } else {
+                        LabLinkScreen.Controls
+                    }
                 }
             }
         }.start()
@@ -418,6 +442,10 @@ private fun LabLinkApp() {
                 }
             }
 
+            LabLinkScreen.BoardSelection -> {
+                currentScreen = LabLinkScreen.Connection
+            }
+
             LabLinkScreen.Terminal -> {
                 currentScreen = LabLinkScreen.Home
             }
@@ -447,7 +475,7 @@ private fun LabLinkApp() {
                 currentScreen = LabLinkScreen.Connection
             },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
-            onOpenControls = { currentScreen = LabLinkScreen.Controls },
+            onOpenControls = { openControlsRespectingBoard() },
         )
 
         LabLinkScreen.Connection -> ConnectionScreen(
@@ -485,8 +513,22 @@ private fun LabLinkApp() {
                 currentScreen = LabLinkScreen.Connection
             },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
-            onOpenControls = { currentScreen = LabLinkScreen.Controls },
+            onOpenControls = { openControlsRespectingBoard() },
             onBack = { currentScreen = LabLinkScreen.Home },
+        )
+
+        LabLinkScreen.BoardSelection -> BoardSelectionScreen(
+            isBluetoothConnected = isBluetoothConnectedForUi,
+            connectedDeviceName = bluetoothState.selectedDevice?.name,
+            initialBoard = selectedBoard,
+            onSaveBoard = { board ->
+                selectedBoard = board
+                BoardSelectionStorage.saveBoard(context, board)
+                currentScreen = LabLinkScreen.Controls
+            },
+            onBack = {
+                currentScreen = LabLinkScreen.Connection
+            },
         )
 
         LabLinkScreen.Terminal -> TerminalScreen(
@@ -497,7 +539,7 @@ private fun LabLinkApp() {
                 currentScreen = LabLinkScreen.Connection
             },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
-            onOpenControls = { currentScreen = LabLinkScreen.Controls },
+            onOpenControls = { openControlsRespectingBoard() },
         )
 
         LabLinkScreen.CreateControl -> CreateControlScreen(
@@ -508,7 +550,7 @@ private fun LabLinkApp() {
                 currentScreen = LabLinkScreen.Connection
             },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
-            onOpenControls = { currentScreen = LabLinkScreen.Controls },
+            onOpenControls = { openControlsRespectingBoard() },
             onSaveControls = { controls ->
                 configuredControls = controls.toList()
                 controlsRefreshKey++
@@ -576,7 +618,7 @@ private fun LabLinkApp() {
                 currentScreen = LabLinkScreen.Connection
             },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
-            onOpenControls = { currentScreen = LabLinkScreen.Controls },
+            onOpenControls = { openControlsRespectingBoard() },
             onCreateControl = { currentScreen = LabLinkScreen.CreateControl },
             onClearControls = {
                 val defaultControls = listOf(
@@ -595,6 +637,7 @@ private fun LabLinkApp() {
     }
 }
 }
+
 
 
 
