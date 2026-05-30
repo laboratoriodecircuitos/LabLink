@@ -36,6 +36,7 @@ import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothFore
 import br.com.laboratoriodecircuitos.lablink.core.boards.BoardSelectionStorage
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlCommandMapper
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlStorage
+import br.com.laboratoriodecircuitos.lablink.core.controls.ControlType
 import br.com.laboratoriodecircuitos.lablink.core.controls.DefaultControls
 import br.com.laboratoriodecircuitos.lablink.core.controls.LabLinkControl
 import br.com.laboratoriodecircuitos.lablink.features.boardselection.BoardSelectionScreen
@@ -43,6 +44,7 @@ import br.com.laboratoriodecircuitos.lablink.features.connection.ConnectionScree
 import br.com.laboratoriodecircuitos.lablink.features.controls.ControlsScreen
 import br.com.laboratoriodecircuitos.lablink.features.createcontrol.CreateControlScreen
 import br.com.laboratoriodecircuitos.lablink.features.home.LabLinkHomeScreen
+import br.com.laboratoriodecircuitos.lablink.features.modulebox.ModuleBoxScreen
 import br.com.laboratoriodecircuitos.lablink.features.terminal.TerminalScreen
 import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
 
@@ -62,6 +64,7 @@ private enum class LabLinkScreen {
     Home,
     Connection,
     BoardSelection,
+    ModuleBox,
     Terminal,
     Controls,
     CreateControl,
@@ -85,6 +88,10 @@ private fun LabLinkApp() {
 
     var selectedBoard by remember {
         mutableStateOf(BoardSelectionStorage.loadBoard(context))
+    }
+
+    var selectedModuleType by remember {
+        mutableStateOf<ControlType?>(null)
     }
 
     var controlsRefreshKey by remember {
@@ -171,6 +178,18 @@ private fun LabLinkApp() {
             )
 
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    fun openModuleBoxRespectingBoard() {
+        val storedBoard = selectedBoard ?: BoardSelectionStorage.loadBoard(context)
+
+        if (storedBoard != null) {
+            selectedBoard = storedBoard
+            selectedModuleType = null
+            currentScreen = LabLinkScreen.ModuleBox
+        } else {
+            currentScreen = LabLinkScreen.BoardSelection
         }
     }
 
@@ -465,6 +484,10 @@ private fun LabLinkApp() {
                 currentScreen = LabLinkScreen.Home
             }
 
+            LabLinkScreen.ModuleBox -> {
+                currentScreen = LabLinkScreen.Controls
+            }
+
             LabLinkScreen.CreateControl -> {
                 currentScreen = LabLinkScreen.Controls
             }
@@ -553,9 +576,22 @@ private fun LabLinkApp() {
             onOpenControls = { openControlsRespectingBoard() },
         )
 
+        LabLinkScreen.ModuleBox -> ModuleBoxScreen(
+            isBluetoothConnected = isBluetoothConnectedForUi,
+            selectedBoard = selectedBoard,
+            onBack = {
+                currentScreen = LabLinkScreen.Controls
+            },
+            onSelectModule = { moduleType ->
+                selectedModuleType = moduleType
+                currentScreen = LabLinkScreen.CreateControl
+            },
+        )
         LabLinkScreen.CreateControl -> CreateControlScreen(
             isBluetoothConnected = isBluetoothConnectedForUi,
             initialBoard = selectedBoard,
+            initialControlType = selectedModuleType,
+            existingControls = configuredControls,
             onOpenHome = { currentScreen = LabLinkScreen.Home },
             onOpenConnection = {
                 refreshBluetoothState()
@@ -564,9 +600,14 @@ private fun LabLinkApp() {
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
             onOpenControls = { openControlsRespectingBoard() },
             onSaveControls = { controls ->
-                configuredControls = controls.toList()
+                val existingControls = ControlStorage.loadControls(context)
+                val updatedControls = existingControls + controls
+
+                configuredControls = updatedControls
+                ControlStorage.saveControls(context, updatedControls)
                 controlsRefreshKey++
-                ControlStorage.saveControls(context, controls)
+                selectedModuleType = null
+
                 currentScreen = LabLinkScreen.Controls
             },
         )
@@ -632,7 +673,7 @@ private fun LabLinkApp() {
             },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
             onOpenControls = { openControlsRespectingBoard() },
-            onCreateControl = { openCreateControlRespectingBoard() },
+            onCreateControl = { openModuleBoxRespectingBoard() },
             onClearControls = {
                 configuredControls = emptyList()
                 ControlStorage.saveControls(context, emptyList())
@@ -644,6 +685,12 @@ private fun LabLinkApp() {
     }
 }
 }
+
+
+
+
+
+
 
 
 

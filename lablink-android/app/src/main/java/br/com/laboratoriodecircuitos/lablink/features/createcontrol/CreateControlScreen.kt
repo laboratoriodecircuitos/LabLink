@@ -1,5 +1,7 @@
 ﻿package br.com.laboratoriodecircuitos.lablink.features.createcontrol
 
+import java.util.UUID
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -94,6 +96,8 @@ private enum class CreateControlStep {
 fun CreateControlScreen(
     isBluetoothConnected: Boolean,
     initialBoard: BoardProfile? = null,
+    initialControlType: ControlType? = null,
+    existingControls: List<LabLinkControl> = emptyList(),
     onOpenHome: () -> Unit,
     onOpenConnection: () -> Unit,
     onOpenTerminal: () -> Unit,
@@ -102,12 +106,12 @@ fun CreateControlScreen(
 ) {
     val scrollState = rememberScrollState()
     var drawerOpen by remember { mutableStateOf(false) }
-    var currentStep by remember(initialBoard?.type) {
+    var currentStep by remember(initialBoard?.type, initialControlType) {
         mutableStateOf(
-            if (initialBoard != null) {
-                CreateControlStep.ChooseType
-            } else {
-                CreateControlStep.ChooseBoard
+            when {
+                initialBoard == null -> CreateControlStep.ChooseBoard
+                initialControlType != null -> CreateControlStep.ChooseQuantity
+                else -> CreateControlStep.ChooseType
             },
         )
     }
@@ -116,10 +120,17 @@ fun CreateControlScreen(
         mutableStateOf(initialBoard)
     }
 
-    var selectedType by remember { mutableStateOf<ControlType?>(null) }
+    var selectedType by remember(initialControlType) {
+        mutableStateOf(initialControlType)
+    }
     var quantity by remember { mutableIntStateOf(1) }
     var controlNames by remember { mutableStateOf(List(8) { "" }) }
     var controlPins by remember { mutableStateOf(List(8) { "" }) }
+
+    val usedPinsFromPanel = existingControls
+        .map { BoardPinValidator.normalizePin(it.pin) }
+        .filter { it.isNotBlank() }
+        .toSet()
 
     fun updateName(index: Int, value: String) {
         controlNames = controlNames.toMutableList().also {
@@ -135,6 +146,17 @@ fun CreateControlScreen(
 
     fun clearPins() {
         controlPins = List(8) { "" }
+    }
+    fun createUniqueModuleId(
+        type: ControlType,
+        pin: String,
+    ): String {
+        val normalizedType = type.name.lowercase()
+        val normalizedPin = BoardPinValidator
+            .normalizePin(pin)
+            .lowercase()
+
+        return "${normalizedType}_${normalizedPin}_${UUID.randomUUID()}"
     }
 
     fun usedPinsExcept(index: Int): Set<String> {
@@ -157,7 +179,7 @@ fun CreateControlScreen(
         return BoardPinValidator.availablePinsFor(
             board = board,
             controlType = type,
-            usedPins = usedPinsExcept(index),
+            usedPins = usedPinsFromPanel + usedPinsExcept(index),
         )
     }
 
@@ -175,7 +197,7 @@ fun CreateControlScreen(
             }
 
             LabLinkControl(
-                id = "${type.name.lowercase()}_${index + 1}_${normalizedPin.lowercase()}",
+                id = createUniqueModuleId(type, normalizedPin),
                 type = type,
                 name = controlNames[index].ifBlank { fallbackName },
                 pin = normalizedPin.removePrefix("D"),
@@ -207,7 +229,7 @@ fun CreateControlScreen(
             board = board,
             controlType = type,
             pin = controlPins[index],
-            usedPins = usedPinsExcept(index),
+            usedPins = usedPinsFromPanel + usedPinsExcept(index),
         )
     }
 
@@ -1182,6 +1204,7 @@ private fun CreateControlScreenPreview() {
         CreateControlScreen(
             isBluetoothConnected = true,
             initialBoard = BoardProfiles.defaultBoard,
+            existingControls = emptyList(),
             onOpenHome = {},
             onOpenConnection = {},
             onOpenTerminal = {},
@@ -1190,6 +1213,12 @@ private fun CreateControlScreenPreview() {
         )
     }
 }
+
+
+
+
+
+
 
 
 
