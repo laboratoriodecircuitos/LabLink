@@ -174,6 +174,17 @@ private fun LabLinkApp() {
         }
     }
 
+    fun openCreateControlRespectingBoard() {
+        val storedBoard = selectedBoard ?: BoardSelectionStorage.loadBoard(context)
+
+        if (storedBoard != null) {
+            selectedBoard = storedBoard
+            currentScreen = LabLinkScreen.CreateControl
+        } else {
+            currentScreen = LabLinkScreen.BoardSelection
+        }
+    }
+
     fun openControlsRespectingBoard() {
         currentScreen = if (
             bluetoothState.status == BluetoothConnectionStatus.Connected &&
@@ -544,6 +555,7 @@ private fun LabLinkApp() {
 
         LabLinkScreen.CreateControl -> CreateControlScreen(
             isBluetoothConnected = isBluetoothConnectedForUi,
+            initialBoard = selectedBoard,
             onOpenHome = { currentScreen = LabLinkScreen.Home },
             onOpenConnection = {
                 refreshBluetoothState()
@@ -619,7 +631,7 @@ private fun LabLinkApp() {
             },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
             onOpenControls = { openControlsRespectingBoard() },
-            onCreateControl = { currentScreen = LabLinkScreen.CreateControl },
+            onCreateControl = { openCreateControlRespectingBoard() },
             onClearControls = {
                 val defaultControls = listOf(
                     DefaultControls.pin13DigitalOutput.copy(
@@ -637,6 +649,9 @@ private fun LabLinkApp() {
     }
 }
 }
+
+
+
 
 
 

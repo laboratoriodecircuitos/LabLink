@@ -93,6 +93,7 @@ private enum class CreateControlStep {
 @Composable
 fun CreateControlScreen(
     isBluetoothConnected: Boolean,
+    initialBoard: BoardProfile? = null,
     onOpenHome: () -> Unit,
     onOpenConnection: () -> Unit,
     onOpenTerminal: () -> Unit,
@@ -101,8 +102,20 @@ fun CreateControlScreen(
 ) {
     val scrollState = rememberScrollState()
     var drawerOpen by remember { mutableStateOf(false) }
-    var currentStep by remember { mutableStateOf(CreateControlStep.ChooseBoard) }
-    var selectedBoard by remember { mutableStateOf<BoardProfile?>(null) }
+    var currentStep by remember(initialBoard?.type) {
+        mutableStateOf(
+            if (initialBoard != null) {
+                CreateControlStep.ChooseType
+            } else {
+                CreateControlStep.ChooseBoard
+            },
+        )
+    }
+
+    var selectedBoard by remember(initialBoard?.type) {
+        mutableStateOf(initialBoard)
+    }
+
     var selectedType by remember { mutableStateOf<ControlType?>(null) }
     var quantity by remember { mutableIntStateOf(1) }
     var controlNames by remember { mutableStateOf(List(8) { "" }) }
@@ -1168,6 +1181,7 @@ private fun CreateControlScreenPreview() {
     LabLinkTheme {
         CreateControlScreen(
             isBluetoothConnected = true,
+            initialBoard = BoardProfiles.defaultBoard,
             onOpenHome = {},
             onOpenConnection = {},
             onOpenTerminal = {},
@@ -1176,5 +1190,8 @@ private fun CreateControlScreenPreview() {
         )
     }
 }
+
+
+
 
 
