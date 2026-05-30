@@ -273,8 +273,8 @@ fun CreateControlScreen(
 
                         CreateControlStep.ChooseType -> {
                             HeaderSection(
-                                title = "Que controle você quer criar?",
-                                description = "Escolha o tipo de controle que será usado no seu projeto Arduino.",
+                                title = "Que módulo você quer adicionar?",
+                                description = "Escolha o tipo de módulo que será usado no seu painel Arduino.",
                             )
 
                             SelectedBoardSummary(
@@ -298,14 +298,14 @@ fun CreateControlScreen(
                             ContinueCard(
                                 enabled = selectedType != null,
                                 title = if (selectedType == null) {
-                                    "Selecione um tipo para continuar"
+                                    "Selecione um módulo para continuar"
                                 } else {
                                     "Continuar"
                                 },
                                 description = if (selectedType == null) {
-                                    "Depois disso, o LabLink vai perguntar a quantidade de controles e os pinos usados."
+                                    "Depois disso, o LabLink vai perguntar a quantidade de módulos e os pinos usados."
                                 } else {
-                                    "Definir quantos controles ${selectedType?.displayName} serão criados."
+                                    "Definir quantos módulos ${selectedType?.displayName} serão criados."
                                 },
                                 onClick = {
                                     if (selectedType != null) {
@@ -359,7 +359,7 @@ fun CreateControlScreen(
                             ContinueCard(
                                 enabled = true,
                                 title = "Continuar",
-                                description = "Agora vamos escolher os pinos de cada controle.",
+                                description = "Agora vamos escolher os pinos de cada módulo.",
                                 onClick = {
                                     currentStep = CreateControlStep.ConfigureControls
                                 },
@@ -376,7 +376,7 @@ fun CreateControlScreen(
 
                             HeaderSection(
                                 title = "Escolha os pinos",
-                                description = "O LabLink mostra apenas os pinos compatíveis com a placa e o tipo de controle escolhido.",
+                                description = "O LabLink mostra apenas os pinos compatíveis com a placa e o tipo de módulo escolhido.",
                             )
 
                             SelectedBoardSummary(
@@ -388,7 +388,7 @@ fun CreateControlScreen(
 
                             SelectedTypeSummary(
                                 type = type,
-                                label = "$quantity controle${if (quantity > 1) "s" else ""}",
+                                label = "$quantity módulo${if (quantity > 1) "s" else ""}",
                                 onBack = {
                                     currentStep = CreateControlStep.ChooseQuantity
                                 },
@@ -409,11 +409,11 @@ fun CreateControlScreen(
 
                             ContinueCard(
                                 enabled = allPinsValid,
-                                title = if (allPinsValid) "Salvar controles" else "Escolha todos os pinos",
+                                title = if (allPinsValid) "Salvar módulos" else "Escolha os pinos dos módulos",
                                 description = if (allPinsValid) {
-                                    "Todos os pinos escolhidos são válidos e não estão repetidos."
+                                    "Todos os módulos estão com pinos válidos e não repetidos."
                                 } else {
-                                    "Selecione um pino disponível para cada controle."
+                                    "Selecione um pino disponível para cada módulo."
                                 },
                                 onClick = {
                                     onSaveControls(buildConfiguredControls())
@@ -425,7 +425,7 @@ fun CreateControlScreen(
             }
 
             LabLinkTopAppBar(
-                title = "Criar controle",
+                title = "Adicionar módulo",
                 isBluetoothConnected = isBluetoothConnected,
                 onOpenDrawer = { drawerOpen = true },
             )
@@ -883,7 +883,7 @@ private fun ControlConfigCard(
         ControlType.ServoSlider -> "Servo ${index + 1}"
         ControlType.PulseButton -> "Pulso ${index + 1}"
         ControlType.AnalogRead -> "Leitura ${index + 1}"
-        null -> "Controle ${index + 1}"
+        null -> "Módulo ${index + 1}"
     }
 
     val isValid = validationResult == PinValidationResult.Valid
@@ -906,7 +906,7 @@ private fun ControlConfigCard(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Text(
-            text = "Controle ${index + 1}",
+            text = "Módulo ${index + 1}",
             color = WhiteSoft,
             fontSize = 18.sp,
             lineHeight = 23.sp,
@@ -1190,6 +1190,7 @@ private fun CreateControlScreenPreview() {
         )
     }
 }
+
 
 
 

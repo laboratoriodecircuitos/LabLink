@@ -965,7 +965,7 @@ private fun EmptyControlsCard() {
         ) {
             EmptyPanelHint(
                 number = "1",
-                text = "Toque em Adicionar controle no topo do painel.",
+                text = "Toque em Adicionar módulo no topo do painel.",
             )
 
             EmptyPanelHint(
@@ -1095,7 +1095,7 @@ private fun CreateControlCard(onCreateControl: () -> Unit) {
             )
 
             Text(
-                text = "Criar novo controle",
+                text = "Adicionar novo módulo",
                 color = WhiteSoft,
                 fontSize = 15.sp,
                 lineHeight = 20.sp,
@@ -1209,7 +1209,7 @@ private fun AddControlTopButton(
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             Text(
-                text = "Adicionar controle",
+                text = "Adicionar módulo",
                 color = Color.Black,
                 fontSize = 17.sp,
                 lineHeight = 22.sp,
@@ -1217,7 +1217,7 @@ private fun AddControlTopButton(
             )
 
             Text(
-                text = "Escolha um módulo para montar seu painel.",
+                text = "Escolha um módulo de controle para montar seu painel.",
                 color = Color.Black.copy(alpha = 0.68f),
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
@@ -1298,6 +1298,7 @@ private fun ControlsScreenPreview() {
         )
     }
 }
+
 
 
 
