@@ -911,29 +911,117 @@ private fun EmptyControlsCard() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(24.dp))
-            .border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
-            .padding(20.dp),
+            .background(CardDark, RoundedCornerShape(26.dp))
+            .border(1.dp, BorderSoft, RoundedCornerShape(26.dp))
+            .padding(22.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            text = "Nenhum controle criado",
-            color = WhiteSoft,
-            fontSize = 18.sp,
-            lineHeight = 23.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .background(AccentPurple.copy(alpha = 0.16f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Lightbulb,
+                    contentDescription = null,
+                    tint = AccentPurple,
+                    modifier = Modifier.size(25.dp),
+                )
+            }
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = "Seu painel ainda está vazio",
+                    color = WhiteSoft,
+                    fontSize = 18.sp,
+                    lineHeight = 23.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+
+                Text(
+                    text = "Monte sua própria interface adicionando módulos de controle.",
+                    color = TextDim,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(20.dp))
+                .border(1.dp, BorderSoft, RoundedCornerShape(20.dp))
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            EmptyPanelHint(
+                number = "1",
+                text = "Toque em Adicionar controle no topo do painel.",
+            )
+
+            EmptyPanelHint(
+                number = "2",
+                text = "Escolha o tipo: Liga / Desliga, PWM, Pulso, Servo ou Leitura.",
+            )
+
+            EmptyPanelHint(
+                number = "3",
+                text = "Selecione um pino disponível da placa e salve o controle.",
+            )
+        }
 
         Text(
-            text = "Crie controles para acionar saídas, PWM, servo, pulso ou leitura de sensores.",
-            color = TextDim,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
+            text = "Os módulos adicionados aparecerão aqui como cards do seu painel.",
+            color = AccentGreen,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            fontWeight = FontWeight.Medium,
         )
     }
 }
 
+@Composable
+private fun EmptyPanelHint(
+    number: String,
+    text: String,
+) {
+    Row(
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .background(AccentPurple.copy(alpha = 0.18f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = number,
+                color = AccentPurple,
+                fontSize = 12.sp,
+                lineHeight = 14.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+
+        Text(
+            text = text,
+            color = TextDim,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
 @Composable
 private fun NotConnectedCard(
     onOpenConnection: () -> Unit,
@@ -1210,6 +1298,7 @@ private fun ControlsScreenPreview() {
         )
     }
 }
+
 
 
 
