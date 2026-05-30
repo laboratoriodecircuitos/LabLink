@@ -48,10 +48,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -171,6 +174,7 @@ fun ControlsScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .panelGridBackground()
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .background(BgDeep),
         ) {
@@ -193,14 +197,25 @@ fun ControlsScreen(
 
                     SelectedBoardPanelCard(selectedBoard = selectedBoard)
 
-                    AddControlTopButton(
+                    PanelActionBar(
+                        selectedBoardName = selectedBoard?.displayName,
+                        isConnected = isConnected,
                         onCreateControl = onCreateControl,
                     )
 
                     if (displayedControls.isEmpty()) {
                         EmptyControlsCard()
                     } else {
-                        displayedControls.forEach { control ->
+                        displayedControls.chunked(2).forEach { rowControls ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                rowControls.forEach { control ->
+                                    Box(
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+
                             when (control.type) {
                                 ControlType.DigitalToggle -> {
                                     DigitalOutputControlCard(
@@ -270,6 +285,14 @@ fun ControlsScreen(
 
                                 ControlType.ServoSlider -> {
                                     FutureConfiguredControlCard(control = control)
+                                }
+                            }
+                        
+                                    }
+                                }
+
+                                if (rowControls.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
                                 }
                             }
                         }
@@ -939,7 +962,7 @@ private fun EmptyControlsCard() {
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = "Seu painel ainda está vazio",
+                    text = "Painel vazio",
                     color = WhiteSoft,
                     fontSize = 18.sp,
                     lineHeight = 23.sp,
@@ -947,7 +970,7 @@ private fun EmptyControlsCard() {
                 )
 
                 Text(
-                    text = "Monte sua própria interface adicionando módulos de controle.",
+                    text = "Use o botão + para adicionar módulos e montar sua interface.",
                     color = TextDim,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
@@ -980,7 +1003,7 @@ private fun EmptyControlsCard() {
         }
 
         Text(
-            text = "Os módulos adicionados aparecerão aqui como cards do seu painel.",
+            text = "Os módulos adicionados aparecerão como widgets sobre a grade do painel.",
             color = AccentGreen,
             fontSize = 12.sp,
             lineHeight = 16.sp,
@@ -1178,54 +1201,61 @@ private fun ControlType.accentColor(): Color {
 
 
 @Composable
-private fun AddControlTopButton(
+private fun PanelActionBar(
+    selectedBoardName: String?,
+    isConnected: Boolean,
     onCreateControl: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(AccentPurple, RoundedCornerShape(24.dp))
-            .clickable { onCreateControl() }
-            .padding(horizontal = 18.dp, vertical = 16.dp),
+            .background(CardDark.copy(alpha = 0.94f), RoundedCornerShape(24.dp))
+            .border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .background(Color.Black.copy(alpha = 0.10f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Add,
-                contentDescription = null,
-                tint = Color.Black,
-                modifier = Modifier.size(25.dp),
-            )
-        }
-
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             Text(
-                text = "Adicionar módulo",
-                color = Color.Black,
+                text = "Painel do projeto",
+                color = WhiteSoft,
                 fontSize = 17.sp,
                 lineHeight = 22.sp,
                 fontWeight = FontWeight.Bold,
             )
 
             Text(
-                text = "Escolha um módulo de controle para montar seu painel.",
-                color = Color.Black.copy(alpha = 0.68f),
+                text = buildString {
+                    append(selectedBoardName ?: "Placa não definida")
+                    append(" • ")
+                    append(if (isConnected) "Bluetooth conectado" else "Bluetooth desconectado")
+                },
+                color = if (isConnected) AccentGreen else TextDim,
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .background(AccentPurple, CircleShape)
+                .clickable { onCreateControl() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Add,
+                contentDescription = null,
+                tint = Color.Black,
+                modifier = Modifier.size(28.dp),
             )
         }
     }
 }
-
 @Composable
 private fun SelectedBoardPanelCard(
     selectedBoard: BoardProfile?,
@@ -1315,5 +1345,54 @@ private fun ControlsScreenPreview() {
 
 
 
+
+
+
+private fun Modifier.panelGridBackground(): Modifier {
+    return drawBehind {
+        val smallStep = 16.dp.toPx()
+        val largeStep = smallStep * 5f
+
+        val dotColor = Color.White.copy(alpha = 0.055f)
+        val lineColor = Color.White.copy(alpha = 0.035f)
+
+        var x = 0f
+        while (x <= size.width) {
+            drawLine(
+                color = lineColor,
+                start = Offset(x, 0f),
+                end = Offset(x, size.height),
+                strokeWidth = 1f,
+            )
+            x += largeStep
+        }
+
+        var y = 0f
+        while (y <= size.height) {
+            drawLine(
+                color = lineColor,
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = 1f,
+            )
+            y += largeStep
+        }
+
+        var dotX = 0f
+        while (dotX <= size.width) {
+            var dotY = 0f
+            while (dotY <= size.height) {
+                drawCircle(
+                    color = dotColor,
+                    radius = 1.15f,
+                    center = Offset(dotX, dotY),
+                    style = Stroke(width = 1f),
+                )
+                dotY += smallStep
+            }
+            dotX += smallStep
+        }
+    }
+}
 
 
