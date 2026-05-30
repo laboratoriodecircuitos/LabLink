@@ -190,26 +190,15 @@ fun ControlsScreen(
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    HeaderSection(
-                        isConnected = isConnected,
-                        hasCustomControls = hasCustomControls,
-                    )
-
-                    SelectedBoardPanelCard(selectedBoard = selectedBoard)
-
-                    PanelActionBar(
-                        selectedBoardName = selectedBoard?.displayName,
-                        isConnected = isConnected,
-                        onCreateControl = onCreateControl,
-                    )
-
-                    if (displayedControls.isEmpty()) {
-                        EmptyControlsCard()
+SelectedBoardPanelCard(selectedBoard = selectedBoard)
+                    WorkspaceAddButton(onCreateControl = onCreateControl)
+if (displayedControls.isEmpty()) {
+                        Spacer(modifier = Modifier.height(520.dp))
                     } else {
                         displayedControls.chunked(2).forEach { rowControls ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
                                 rowControls.forEach { control ->
                                     Box(
@@ -411,20 +400,20 @@ private fun DigitalOutputControlCard(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(if (enabled) 1f else 0.52f)
-            .background(CardDark, RoundedCornerShape(30.dp))
+            .background(CardDark, RoundedCornerShape(22.dp))
             .border(
                 width = 1.dp,
                 color = if (isOn) activeColor.copy(alpha = 0.55f) else BorderSoft,
-                shape = RoundedCornerShape(30.dp),
+                shape = RoundedCornerShape(22.dp),
             )
             .clickable(enabled = enabled) { onToggle() }
-            .padding(20.dp),
+            .padding(14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = control.name,
             color = WhiteSoft,
-            fontSize = 18.sp,
+            fontSize = 12.sp,
             lineHeight = 23.sp,
             fontWeight = FontWeight.SemiBold,
         )
@@ -435,7 +424,7 @@ private fun DigitalOutputControlCard(
             text = "Liga / Desliga • ${control.pinLabel}",
             color = TextDim,
             fontSize = 12.sp,
-            lineHeight = 16.sp,
+            lineHeight = 15.sp,
             fontFamily = FontFamily.Monospace,
         )
 
@@ -656,23 +645,23 @@ private fun PulseControlCard(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(if (enabled) 1f else 0.52f)
-            .background(CardDark, RoundedCornerShape(30.dp))
+            .background(CardDark, RoundedCornerShape(22.dp))
             .border(
                 width = 1.dp,
                 color = BorderSoft,
-                shape = RoundedCornerShape(30.dp),
+                shape = RoundedCornerShape(22.dp),
             )
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(38.dp)
                     .background(AccentYellow.copy(alpha = 0.16f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
@@ -690,7 +679,7 @@ private fun PulseControlCard(
                 Text(
                     text = control.name,
                     color = WhiteSoft,
-                    fontSize = 18.sp,
+                    fontSize = 12.sp,
                     lineHeight = 23.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -701,7 +690,7 @@ private fun PulseControlCard(
                     text = "${control.pinLabel} • Pulso momentâneo",
                     color = TextDim,
                     fontSize = 13.sp,
-                    lineHeight = 18.sp,
+                    lineHeight = 15.sp,
                     fontFamily = FontFamily.Monospace,
                 )
             }
@@ -726,8 +715,8 @@ private fun PulseControlCard(
             Text(
                 text = "Enviar pulso",
                 color = if (enabled) Color.Black else TextDim,
-                fontSize = 18.sp,
-                lineHeight = 24.sp,
+                fontSize = 12.sp,
+                lineHeight = 21.sp,
                 fontWeight = FontWeight.SemiBold,
             )
         }
@@ -740,7 +729,7 @@ private fun PulseControlCard(
             },
             color = TextDim,
             fontSize = 13.sp,
-            lineHeight = 18.sp,
+            lineHeight = 15.sp,
         )
     }
 }
@@ -759,23 +748,23 @@ private fun AnalogReadControlCard(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(if (enabled) 1f else 0.52f)
-            .background(CardDark, RoundedCornerShape(30.dp))
+            .background(CardDark, RoundedCornerShape(22.dp))
             .border(
                 width = 1.dp,
                 color = if (value != null) AccentGreen.copy(alpha = 0.45f) else BorderSoft,
-                shape = RoundedCornerShape(30.dp),
+                shape = RoundedCornerShape(22.dp),
             )
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(38.dp)
                     .background(AccentGreen.copy(alpha = 0.16f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
@@ -793,7 +782,7 @@ private fun AnalogReadControlCard(
                 Text(
                     text = control.name,
                     color = WhiteSoft,
-                    fontSize = 18.sp,
+                    fontSize = 12.sp,
                     lineHeight = 23.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -804,7 +793,7 @@ private fun AnalogReadControlCard(
                     text = "${control.pinLabel} • Entrada analógica",
                     color = TextDim,
                     fontSize = 13.sp,
-                    lineHeight = 18.sp,
+                    lineHeight = 15.sp,
                     fontFamily = FontFamily.Monospace,
                 )
             }
@@ -829,7 +818,7 @@ private fun AnalogReadControlCard(
                 text = if (percentage == null) "Aguardando leitura" else "$percentage% de 1023",
                 color = TextDim,
                 fontSize = 13.sp,
-                lineHeight = 18.sp,
+                lineHeight = 15.sp,
             )
         }
 
@@ -852,8 +841,8 @@ private fun AnalogReadControlCard(
             Text(
                 text = "Ler agora",
                 color = if (enabled) Color.Black else TextDim,
-                fontSize = 18.sp,
-                lineHeight = 24.sp,
+                fontSize = 12.sp,
+                lineHeight = 21.sp,
                 fontWeight = FontWeight.SemiBold,
             )
         }
@@ -866,7 +855,7 @@ private fun AnalogReadControlCard(
             },
             color = TextDim,
             fontSize = 13.sp,
-            lineHeight = 18.sp,
+            lineHeight = 15.sp,
         )
     }
 }
@@ -937,7 +926,7 @@ private fun EmptyControlsCard() {
             .background(CardDark, RoundedCornerShape(26.dp))
             .border(1.dp, BorderSoft, RoundedCornerShape(26.dp))
             .padding(22.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1213,7 +1202,7 @@ private fun PanelActionBar(
             .border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Column(
             modifier = Modifier.weight(1f),
@@ -1396,3 +1385,30 @@ private fun Modifier.panelGridBackground(): Modifier {
 }
 
 
+
+
+@Composable
+private fun WorkspaceAddButton(
+    onCreateControl: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .background(AccentPurple, CircleShape)
+                .clickable { onCreateControl() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Add,
+                contentDescription = null,
+                tint = Color.Black,
+                modifier = Modifier.size(28.dp),
+            )
+        }
+    }
+}
