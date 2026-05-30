@@ -193,8 +193,12 @@ fun ControlsScreen(
 
                     SelectedBoardPanelCard(selectedBoard = selectedBoard)
 
+                    AddControlTopButton(
+                        onCreateControl = onCreateControl,
+                    )
+
                     if (displayedControls.isEmpty()) {
-                        EmptyControlsCard(onCreateControl = onCreateControl)
+                        EmptyControlsCard()
                     } else {
                         displayedControls.forEach { control ->
                             when (control.type) {
@@ -276,8 +280,6 @@ fun ControlsScreen(
                             onOpenConnection = onOpenConnection,
                         )
                     }
-
-                    CreateControlCard(onCreateControl = onCreateControl)
 
                     if (hasCustomControls) {
                         ResetControlsCard(
@@ -905,15 +907,12 @@ private fun FutureConfiguredControlCard(control: LabLinkControl) {
 }
 
 @Composable
-private fun EmptyControlsCard(
-    onCreateControl: () -> Unit,
-) {
+private fun EmptyControlsCard() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(CardDark, RoundedCornerShape(24.dp))
             .border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
-            .clickable { onCreateControl() }
             .padding(20.dp),
     ) {
         Text(
@@ -1089,6 +1088,56 @@ private fun ControlType.accentColor(): Color {
 }
 
 
+
+@Composable
+private fun AddControlTopButton(
+    onCreateControl: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AccentPurple, RoundedCornerShape(24.dp))
+            .clickable { onCreateControl() }
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .background(Color.Black.copy(alpha = 0.10f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Add,
+                contentDescription = null,
+                tint = Color.Black,
+                modifier = Modifier.size(25.dp),
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = "Adicionar controle",
+                color = Color.Black,
+                fontSize = 17.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.Bold,
+            )
+
+            Text(
+                text = "Escolha um módulo para montar seu painel.",
+                color = Color.Black.copy(alpha = 0.68f),
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+            )
+        }
+    }
+}
+
 @Composable
 private fun SelectedBoardPanelCard(
     selectedBoard: BoardProfile?,
@@ -1161,6 +1210,8 @@ private fun ControlsScreenPreview() {
         )
     }
 }
+
+
 
 
 
