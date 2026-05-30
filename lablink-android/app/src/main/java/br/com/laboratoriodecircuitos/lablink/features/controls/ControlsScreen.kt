@@ -392,79 +392,67 @@ private fun DigitalOutputControlCard(
     enabled: Boolean,
     onToggle: () -> Unit,
 ) {
-    val activeColor = AccentYellow
-    val inactiveIconColor = TextDim
-    val statusText = if (isOn) "Ligado" else "Desligado"
+    val stateText = if (isOn) "ON" else "OFF"
+    val stateColor = if (isOn) AccentGreen else AccentPurple
+    val surfaceColor = if (isOn) {
+        AccentGreen.copy(alpha = 0.12f)
+    } else {
+        CardDark.copy(alpha = 0.96f)
+    }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (enabled) 1f else 0.52f)
-            .background(CardDark, RoundedCornerShape(22.dp))
+            .background(surfaceColor, RoundedCornerShape(18.dp))
             .border(
                 width = 1.dp,
-                color = if (isOn) activeColor.copy(alpha = 0.55f) else BorderSoft,
-                shape = RoundedCornerShape(22.dp),
+                color = stateColor.copy(alpha = if (isOn) 0.82f else 0.42f),
+                shape = RoundedCornerShape(18.dp),
             )
             .clickable(enabled = enabled) { onToggle() }
-            .padding(14.dp),
+            .padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = control.name,
-            color = WhiteSoft,
-            fontSize = 12.sp,
-            lineHeight = 23.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = "Liga / Desliga • ${control.pinLabel}",
+            text = control.name.ifBlank { "BUTTON" }.uppercase(),
             color = TextDim,
-            fontSize = 12.sp,
-            lineHeight = 15.sp,
-            fontFamily = FontFamily.Monospace,
+            fontSize = 10.sp,
+            lineHeight = 12.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         Box(
             modifier = Modifier
-                .size(84.dp)
+                .size(72.dp)
+                .border(
+                    width = 2.dp,
+                    color = stateColor,
+                    shape = CircleShape,
+                )
                 .background(
-                    color = if (isOn) activeColor.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.05f),
+                    color = if (isOn) stateColor.copy(alpha = 0.16f) else Color.Transparent,
                     shape = CircleShape,
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = Icons.Outlined.Lightbulb,
-                contentDescription = null,
-                tint = if (isOn) activeColor else inactiveIconColor,
-                modifier = Modifier.size(46.dp),
+            Text(
+                text = stateText,
+                color = stateColor,
+                fontSize = 18.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.Bold,
             )
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
-
         Text(
-            text = statusText,
-            color = if (isOn) activeColor else WhiteSoft,
-            fontSize = 34.sp,
-            lineHeight = 40.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = (-0.6).sp,
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Spacer(modifier = Modifier.height(22.dp))
-
-        LargeToggle(
-            isOn = isOn,
-            enabled = enabled,
+            text = control.pin,
+            color = TextDim,
+            fontSize = 10.sp,
+            lineHeight = 12.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
         )
     }
 }
@@ -1412,3 +1400,4 @@ private fun WorkspaceAddButton(
         }
     }
 }
+
