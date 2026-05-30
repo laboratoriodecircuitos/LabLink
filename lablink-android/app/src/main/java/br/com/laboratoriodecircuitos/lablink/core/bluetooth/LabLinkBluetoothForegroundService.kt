@@ -58,6 +58,8 @@ class LabLinkBluetoothForegroundService : Service() {
     }
 
     private fun stopForegroundService() {
+        LabLinkBluetoothConnectionManager.disconnectCurrentDevice()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)
         } else {
@@ -90,7 +92,9 @@ class LabLinkBluetoothForegroundService : Service() {
         title: String,
         text: String,
     ): Notification {
-        val openAppIntent = Intent(this, MainActivity::class.java)
+        val openAppIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
         val openAppPendingIntent = PendingIntent.getActivity(
             this,
             0,
@@ -150,3 +154,5 @@ class LabLinkBluetoothForegroundService : Service() {
         }
     }
 }
+
+

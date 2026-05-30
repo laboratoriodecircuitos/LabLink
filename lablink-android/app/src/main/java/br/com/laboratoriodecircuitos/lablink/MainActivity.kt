@@ -1,6 +1,9 @@
 ﻿package br.com.laboratoriodecircuitos.lablink
 
+import android.Manifest
+
 import android.os.Bundle
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.content.pm.PackageManager
@@ -28,7 +31,8 @@ import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDiscoverySt
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPermissionHelper
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPermissionRequirements
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPairingStatus
-import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothService
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothConnectionManager
+import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothForegroundService
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlCommandMapper
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlStorage
 import br.com.laboratoriodecircuitos.lablink.core.controls.DefaultControls
@@ -63,7 +67,7 @@ private enum class LabLinkScreen {
 @Composable
 private fun LabLinkApp() {
     val context = LocalContext.current
-    val bluetoothService = remember { LabLinkBluetoothService() }
+    val bluetoothService = remember { LabLinkBluetoothConnectionManager }
     val bluetoothDiscoveryController = remember { BluetoothDiscoveryController() }
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
 
@@ -122,6 +126,47 @@ private fun LabLinkApp() {
         )
     }
 
+    fun hasNotificationPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        LabLinkBluetoothForegroundService.start(context.applicationContext)
+
+        bluetoothState = bluetoothState.copy(
+            message = if (granted) {
+                "Conexão protegida ativada. O LabLink mostrará uma notificação enquanto mantiver o Bluetooth ativo."
+            } else {
+                "Conexão protegida ativada. Como a notificação foi negada, o Android pode limitar a visibilidade do serviço."
+            },
+        )
+    }
+
+    fun startBluetoothForegroundServiceWithGuide() {
+        if (hasNotificationPermission()) {
+            LabLinkBluetoothForegroundService.start(context.applicationContext)
+
+            bluetoothState = bluetoothState.copy(
+                message = "Conexão protegida ativada. O LabLink manterá um serviço Bluetooth em primeiro plano.",
+            )
+        } else {
+            bluetoothState = bluetoothState.copy(
+                message = "Para manter a conexão Bluetooth ativa fora da tela, permita a notificação do LabLink.",
+            )
+
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     fun connectSelectedDevice() {
         val stateBeforeConnection = bluetoothService.connectingState(bluetoothState)
         bluetoothState = stateBeforeConnection
@@ -134,12 +179,17 @@ private fun LabLinkApp() {
 
             mainHandler.post {
                 bluetoothState = resultState
+
+                if (resultState.status == BluetoothConnectionStatus.Connected) {
+                    startBluetoothForegroundServiceWithGuide()
+                }
             }
         }.start()
     }
 
     fun disconnectSelectedDevice() {
         bluetoothState = bluetoothService.disconnectDevice(bluetoothState)
+        LabLinkBluetoothForegroundService.stop(context.applicationContext)
     }
 
     fun sendCommand(command: String) {
@@ -545,6 +595,9 @@ private fun LabLinkApp() {
     }
 }
 }
+
+
+
 
 
 

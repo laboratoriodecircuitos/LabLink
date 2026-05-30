@@ -41,6 +41,7 @@
             android:foregroundServiceType="connectedDevice" />
         <activity
             android:name=".MainActivity"
+            android:launchMode="singleTop"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:exported="true"
             android:label="@string/app_name"
@@ -54,6 +55,7 @@
     </application>
 
 </manifest>
+
 
 
 
