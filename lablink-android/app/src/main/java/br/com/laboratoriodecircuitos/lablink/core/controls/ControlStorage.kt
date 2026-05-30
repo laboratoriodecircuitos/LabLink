@@ -13,7 +13,7 @@ object ControlStorage {
         val rawJson = prefs.getString(KEY_CONTROLS, null)
 
         if (rawJson.isNullOrBlank()) {
-            return listOf(DefaultControls.pin13DigitalOutput)
+            return emptyList()
         }
 
         return runCatching {
@@ -39,10 +39,10 @@ object ControlStorage {
                     )
                 }
             }.ifEmpty {
-                listOf(DefaultControls.pin13DigitalOutput)
+                emptyList()
             }
         }.getOrElse {
-            listOf(DefaultControls.pin13DigitalOutput)
+            emptyList()
         }
     }
 
@@ -80,4 +80,5 @@ object ControlStorage {
         }
     }
 }
+
 

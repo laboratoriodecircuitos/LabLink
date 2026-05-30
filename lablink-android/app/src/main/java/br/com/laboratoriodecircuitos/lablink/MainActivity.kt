@@ -634,14 +634,8 @@ private fun LabLinkApp() {
             onOpenControls = { openControlsRespectingBoard() },
             onCreateControl = { openCreateControlRespectingBoard() },
             onClearControls = {
-                val defaultControls = listOf(
-                    DefaultControls.pin13DigitalOutput.copy(
-                        isOn = false,
-                    )
-                )
-
-                configuredControls = defaultControls.toList()
-                ControlStorage.saveControls(context, defaultControls)
+                configuredControls = emptyList()
+                ControlStorage.saveControls(context, emptyList())
                 controlsRefreshKey++
 
                 currentScreen = LabLinkScreen.Controls
@@ -650,6 +644,7 @@ private fun LabLinkApp() {
     }
 }
 }
+
 
 
 

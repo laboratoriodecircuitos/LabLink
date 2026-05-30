@@ -81,7 +81,7 @@ private val BorderSoft = Color.White.copy(alpha = 0.06f)
 fun ControlsScreen(
     bluetoothState: BluetoothUiState,
     selectedBoard: BoardProfile? = null,
-    controls: List<LabLinkControl> = listOf(DefaultControls.pin13DigitalOutput),
+    controls: List<LabLinkControl> = emptyList(),
     controlsRefreshKey: Int = 0,
     onSendPing: () -> Unit,
     onToggleDigitalControl: (LabLinkControl, Boolean) -> Unit = { _, _ -> },
@@ -107,8 +107,7 @@ fun ControlsScreen(
     }
 
     val isConnected = bluetoothState.status == BluetoothConnectionStatus.Connected
-    val hasCustomControls = displayedControls.any { it.id != DefaultControls.pin13DigitalOutput.id } ||
-        displayedControls.size != 1
+    val hasCustomControls = displayedControls.isNotEmpty()
     val digitalStates = remember { mutableStateMapOf<String, Boolean>() }
     val pwmStates = remember { mutableStateMapOf<String, Int>() }
     val analogReadStates = remember { mutableStateMapOf<String, Int>() }
@@ -284,10 +283,11 @@ fun ControlsScreen(
                         ResetControlsCard(
                             onClearControls = {
                                 displayedControls.clear()
-                                displayedControls.add(DefaultControls.pin13DigitalOutput.copy(isOn = false))
-
                                 digitalStates.clear()
-                                digitalStates[DefaultControls.pin13DigitalOutput.id] = false
+                                pwmStates.clear()
+                                analogReadStates.clear()
+                                pwmLastSentAt.clear()
+                                pwmLastSentValues.clear()
 
                                 onClearControls()
                             },
@@ -1161,6 +1161,7 @@ private fun ControlsScreenPreview() {
         )
     }
 }
+
 
 
 
