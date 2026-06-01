@@ -122,6 +122,7 @@ class LabLinkBluetoothForegroundService : Service() {
             .setContentText(text)
             .setContentIntent(openAppPendingIntent)
             .setOngoing(true)
+            .setAutoCancel(false)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .addAction(

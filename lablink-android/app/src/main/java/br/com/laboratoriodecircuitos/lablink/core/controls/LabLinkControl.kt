@@ -9,6 +9,12 @@ data class LabLinkControl(
     val maxValue: Int? = null,
     val currentValue: Int? = null,
     val isOn: Boolean = false,
+    val widthUnits: Int = 1,
+    val heightUnits: Int = 1,
+    val gridX: Int = 0,
+    val gridY: Int = 0,
+    val mode: String? = null,
+    val durationMs: Int? = null,
 ) {
     val pinLabel: String
         get() = when {

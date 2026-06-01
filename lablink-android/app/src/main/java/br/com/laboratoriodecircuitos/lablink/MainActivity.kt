@@ -1,6 +1,8 @@
 ﻿package br.com.laboratoriodecircuitos.lablink
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 
 import android.os.Bundle
 import android.os.Build
@@ -15,8 +17,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,20 +33,24 @@ import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPermissionR
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothPairingStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothConnectionManager
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.LabLinkBluetoothForegroundService
+import br.com.laboratoriodecircuitos.lablink.core.boards.BoardProfiles
 import br.com.laboratoriodecircuitos.lablink.core.boards.BoardSelectionStorage
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlCommandMapper
-import br.com.laboratoriodecircuitos.lablink.core.controls.ControlStorage
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlType
-import br.com.laboratoriodecircuitos.lablink.core.controls.DefaultControls
+import br.com.laboratoriodecircuitos.lablink.core.controls.CustomControl
+import br.com.laboratoriodecircuitos.lablink.core.controls.CustomControlStorage
 import br.com.laboratoriodecircuitos.lablink.core.controls.LabLinkControl
 import br.com.laboratoriodecircuitos.lablink.features.boardselection.BoardSelectionScreen
 import br.com.laboratoriodecircuitos.lablink.features.connection.ConnectionScreen
-import br.com.laboratoriodecircuitos.lablink.features.controls.ControlsScreen
-import br.com.laboratoriodecircuitos.lablink.features.createcontrol.CreateControlScreen
+import br.com.laboratoriodecircuitos.lablink.features.customcontrol.CustomControlCanvasScreen
+import br.com.laboratoriodecircuitos.lablink.features.customcontrol.WidgetSettingsScreen
 import br.com.laboratoriodecircuitos.lablink.features.home.LabLinkHomeScreen
-import br.com.laboratoriodecircuitos.lablink.features.modulebox.ModuleBoxScreen
+import br.com.laboratoriodecircuitos.lablink.features.joystick.JoystickScreen
+import br.com.laboratoriodecircuitos.lablink.features.mainmenu.MainMenuScreen
+import br.com.laboratoriodecircuitos.lablink.features.mycontrols.MyControlsScreen
 import br.com.laboratoriodecircuitos.lablink.features.terminal.TerminalScreen
 import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
+import java.util.UUID
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,10 +68,12 @@ private enum class LabLinkScreen {
     Home,
     Connection,
     BoardSelection,
-    ModuleBox,
+    MainMenu,
+    MyControls,
+    CustomControlCanvas,
+    WidgetSettings,
+    Joystick,
     Terminal,
-    Controls,
-    CreateControl,
 }
 
 @Composable
@@ -82,8 +88,20 @@ private fun LabLinkApp() {
         mutableStateOf(bluetoothService.evaluateInitialState(context))
     }
 
-    var configuredControls by remember {
-        mutableStateOf(ControlStorage.loadControls(context))
+    var customControls by remember {
+        mutableStateOf(CustomControlStorage.loadControls(context))
+    }
+
+    var activeCustomControl by remember {
+        mutableStateOf<CustomControl?>(null)
+    }
+
+    var isEditingCustomControl by remember {
+        mutableStateOf(false)
+    }
+
+    var customControlNameError by remember {
+        mutableStateOf<String?>(null)
     }
 
     var selectedBoard by remember {
@@ -92,10 +110,6 @@ private fun LabLinkApp() {
 
     var selectedModuleType by remember {
         mutableStateOf<ControlType?>(null)
-    }
-
-    var controlsRefreshKey by remember {
-        mutableIntStateOf(0)
     }
 
     var discoveryStatus by remember {
@@ -181,37 +195,118 @@ private fun LabLinkApp() {
         }
     }
 
-    fun openModuleBoxRespectingBoard() {
-        val storedBoard = selectedBoard ?: BoardSelectionStorage.loadBoard(context)
-
-        if (storedBoard != null) {
-            selectedBoard = storedBoard
-            selectedModuleType = null
-            currentScreen = LabLinkScreen.ModuleBox
-        } else {
-            currentScreen = LabLinkScreen.BoardSelection
-        }
-    }
-
-    fun openCreateControlRespectingBoard() {
-        val storedBoard = selectedBoard ?: BoardSelectionStorage.loadBoard(context)
-
-        if (storedBoard != null) {
-            selectedBoard = storedBoard
-            currentScreen = LabLinkScreen.CreateControl
-        } else {
-            currentScreen = LabLinkScreen.BoardSelection
-        }
-    }
-
-    fun openControlsRespectingBoard() {
+    fun openMainMenuRespectingBoard() {
         currentScreen = if (
             bluetoothState.status == BluetoothConnectionStatus.Connected &&
             selectedBoard == null
         ) {
             LabLinkScreen.BoardSelection
         } else {
-            LabLinkScreen.Controls
+            LabLinkScreen.MainMenu
+        }
+    }
+
+    fun createNewCustomControl() {
+        activeCustomControl = CustomControl(
+            id = UUID.randomUUID().toString(),
+            name = "",
+            widgets = emptyList(),
+            isSaved = false,
+        )
+        selectedModuleType = null
+        customControlNameError = null
+        isEditingCustomControl = true
+        currentScreen = LabLinkScreen.CustomControlCanvas
+    }
+
+    fun saveCustomControls(updatedControls: List<CustomControl>) {
+        customControls = updatedControls
+        CustomControlStorage.saveControls(context, updatedControls)
+    }
+
+    fun saveActiveCustomControl() {
+        val control = activeCustomControl ?: return
+        val normalizedName = control.name.trim().lowercase()
+
+        if (normalizedName.isBlank()) {
+            customControlNameError = "Dê um nome para salvar o controle."
+            return
+        }
+
+        val duplicatedName = customControls.any { savedControl ->
+            savedControl.id != control.id &&
+                savedControl.name.trim().lowercase() == normalizedName
+        }
+
+        if (duplicatedName) {
+            customControlNameError = "Já existe um controle com esse nome."
+            return
+        }
+
+        val savedControl = control.copy(
+            name = control.name.trim(),
+            isSaved = true,
+        )
+        val updatedControls = customControls
+            .filterNot { it.id == savedControl.id } + savedControl
+
+        activeCustomControl = savedControl
+        isEditingCustomControl = false
+        customControlNameError = null
+        saveCustomControls(updatedControls)
+    }
+
+    fun openCommunity() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/circuiteiros"))
+        context.startActivity(intent)
+    }
+
+    fun widgetsOverlap(
+        moving: LabLinkControl,
+        targetX: Int,
+        targetY: Int,
+        other: LabLinkControl,
+    ): Boolean {
+        val movingWidth = moving.widthUnits.coerceIn(1, 3)
+        val movingHeight = moving.heightUnits.coerceIn(1, 2)
+        val otherWidth = other.widthUnits.coerceIn(1, 3)
+        val otherHeight = other.heightUnits.coerceIn(1, 2)
+
+        return targetX < other.gridX + otherWidth &&
+            targetX + movingWidth > other.gridX &&
+            targetY < other.gridY + otherHeight &&
+            targetY + movingHeight > other.gridY
+    }
+
+    fun firstAvailableWidgetPosition(
+        moving: LabLinkControl,
+        widgets: List<LabLinkControl>,
+        preferredX: Int,
+        preferredY: Int,
+    ): Pair<Int, Int>? {
+        val width = moving.widthUnits.coerceIn(1, 3)
+        val maxX = 3 - width
+        val maxY = (widgets.maxOfOrNull { it.gridY + it.heightUnits.coerceIn(1, 2) } ?: 0) + 6
+        val candidates = buildList {
+            add(preferredX to preferredY)
+            for (y in preferredY..maxY) {
+                for (x in 0..maxX) {
+                    add(x to y)
+                }
+            }
+            for (y in 0 until preferredY) {
+                for (x in 0..maxX) {
+                    add(x to y)
+                }
+            }
+        }
+
+        return candidates.firstOrNull { (x, y) ->
+            x in 0..maxX &&
+                y >= 0 &&
+                widgets.none { existing ->
+                    existing.id != moving.id && widgetsOverlap(moving, x, y, existing)
+                }
         }
     }
 
@@ -234,7 +329,7 @@ private fun LabLinkApp() {
                     currentScreen = if (selectedBoard == null) {
                         LabLinkScreen.BoardSelection
                     } else {
-                        LabLinkScreen.Controls
+                        LabLinkScreen.MainMenu
                     }
                 }
             }
@@ -476,20 +571,19 @@ private fun LabLinkApp() {
                 currentScreen = LabLinkScreen.Connection
             }
 
+            LabLinkScreen.MainMenu -> {
+                currentScreen = LabLinkScreen.Home
+            }
+
+            LabLinkScreen.MyControls,
+            LabLinkScreen.CustomControlCanvas,
+            LabLinkScreen.Joystick,
             LabLinkScreen.Terminal -> {
-                currentScreen = LabLinkScreen.Home
+                currentScreen = LabLinkScreen.MainMenu
             }
 
-            LabLinkScreen.Controls -> {
-                currentScreen = LabLinkScreen.Home
-            }
-
-            LabLinkScreen.ModuleBox -> {
-                currentScreen = LabLinkScreen.Controls
-            }
-
-            LabLinkScreen.CreateControl -> {
-                currentScreen = LabLinkScreen.Controls
+            LabLinkScreen.WidgetSettings -> {
+                currentScreen = LabLinkScreen.CustomControlCanvas
             }
         }
     }
@@ -509,7 +603,7 @@ private fun LabLinkApp() {
                 currentScreen = LabLinkScreen.Connection
             },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
-            onOpenControls = { openControlsRespectingBoard() },
+            onOpenControls = { openMainMenuRespectingBoard() },
         )
 
         LabLinkScreen.Connection -> ConnectionScreen(
@@ -547,7 +641,7 @@ private fun LabLinkApp() {
                 currentScreen = LabLinkScreen.Connection
             },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
-            onOpenControls = { openControlsRespectingBoard() },
+            onOpenControls = { openMainMenuRespectingBoard() },
             onBack = { currentScreen = LabLinkScreen.Home },
         )
 
@@ -558,11 +652,18 @@ private fun LabLinkApp() {
             onSaveBoard = { board ->
                 selectedBoard = board
                 BoardSelectionStorage.saveBoard(context, board)
-                currentScreen = LabLinkScreen.Controls
+                currentScreen = LabLinkScreen.MainMenu
             },
             onBack = {
                 currentScreen = LabLinkScreen.Connection
             },
+            onOpenHome = { currentScreen = LabLinkScreen.Home },
+            onOpenConnection = {
+                refreshBluetoothState()
+                currentScreen = LabLinkScreen.Connection
+            },
+            onOpenControls = { openMainMenuRespectingBoard() },
+            onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
         )
 
         LabLinkScreen.Terminal -> TerminalScreen(
@@ -573,117 +674,188 @@ private fun LabLinkApp() {
                 currentScreen = LabLinkScreen.Connection
             },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
-            onOpenControls = { openControlsRespectingBoard() },
+            onOpenControls = { openMainMenuRespectingBoard() },
         )
 
-        LabLinkScreen.ModuleBox -> ModuleBoxScreen(
+        LabLinkScreen.MainMenu -> MainMenuScreen(
             isBluetoothConnected = isBluetoothConnectedForUi,
             selectedBoard = selectedBoard,
-            onBack = {
-                currentScreen = LabLinkScreen.Controls
+            onNewCustomControl = { createNewCustomControl() },
+            onMyControls = { currentScreen = LabLinkScreen.MyControls },
+            onJoystick = { currentScreen = LabLinkScreen.Joystick },
+            onCommunity = { openCommunity() },
+            onChangeBoard = { currentScreen = LabLinkScreen.BoardSelection },
+            onOpenHome = { currentScreen = LabLinkScreen.Home },
+            onOpenConnection = {
+                refreshBluetoothState()
+                currentScreen = LabLinkScreen.Connection
             },
-            onSelectModule = { moduleType ->
-                selectedModuleType = moduleType
-                currentScreen = LabLinkScreen.CreateControl
-            },
+            onOpenControls = { openMainMenuRespectingBoard() },
+            onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
         )
-        LabLinkScreen.CreateControl -> CreateControlScreen(
+
+        LabLinkScreen.MyControls -> MyControlsScreen(
+            controls = customControls,
             isBluetoothConnected = isBluetoothConnectedForUi,
-            initialBoard = selectedBoard,
-            initialControlType = selectedModuleType,
-            existingControls = configuredControls,
+            onOpenControl = { control ->
+                activeCustomControl = control
+                customControlNameError = null
+                isEditingCustomControl = false
+                currentScreen = LabLinkScreen.CustomControlCanvas
+            },
+            onBack = { currentScreen = LabLinkScreen.MainMenu },
+            onCreateControl = { createNewCustomControl() },
             onOpenHome = { currentScreen = LabLinkScreen.Home },
             onOpenConnection = {
                 refreshBluetoothState()
                 currentScreen = LabLinkScreen.Connection
             },
+            onOpenControls = { openMainMenuRespectingBoard() },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
-            onOpenControls = { openControlsRespectingBoard() },
-            onSaveControls = { controls ->
-                val existingControls = ControlStorage.loadControls(context)
-                val updatedControls = existingControls + controls
-
-                configuredControls = updatedControls
-                ControlStorage.saveControls(context, updatedControls)
-                controlsRefreshKey++
-                selectedModuleType = null
-
-                currentScreen = LabLinkScreen.Controls
-            },
         )
 
-        LabLinkScreen.Controls -> key(controlsRefreshKey) {
-            ControlsScreen(
-                bluetoothState = bluetoothState,
-                selectedBoard = selectedBoard,
-                controls = configuredControls,
-                controlsRefreshKey = controlsRefreshKey,
-                onSendPing = { sendCommand("PING") },
-            onToggleDigitalControl = { control, turnOn ->
-                sendCommand(
-                    ControlCommandMapper.digitalToggleCommand(
-                        control = control,
-                        turnOn = turnOn,
+        LabLinkScreen.CustomControlCanvas -> activeCustomControl?.let { control ->
+            CustomControlCanvasScreen(
+                control = control,
+                isEditing = isEditingCustomControl,
+                isBluetoothConnected = isBluetoothConnectedForUi,
+                validationMessage = customControlNameError,
+                lastReceivedMessage = bluetoothState.lastReceivedMessage,
+                onNameChange = { name ->
+                    customControlNameError = null
+                    activeCustomControl = activeCustomControl?.copy(name = name)
+                },
+                onAddWidget = { type ->
+                    selectedModuleType = type
+                    currentScreen = LabLinkScreen.WidgetSettings
+                },
+                onSaveControl = { saveActiveCustomControl() },
+                onEditControl = { isEditingCustomControl = true },
+                onMoveWidget = { widget, deltaX, deltaY ->
+                    val currentControl = activeCustomControl
+                    val widgets = currentControl?.widgets.orEmpty()
+                    val latestWidget = widgets.firstOrNull { it.id == widget.id }
+
+                    if (latestWidget != null) {
+                        val targetX = (latestWidget.gridX + deltaX).coerceIn(
+                            0,
+                            3 - latestWidget.widthUnits.coerceIn(1, 3),
+                        )
+                        val targetY = (latestWidget.gridY + deltaY).coerceAtLeast(0)
+                        val position = firstAvailableWidgetPosition(
+                            moving = latestWidget,
+                            widgets = widgets,
+                            preferredX = targetX,
+                            preferredY = targetY,
+                        )
+
+                        if (position != null) {
+                            activeCustomControl = currentControl?.copy(
+                                widgets = widgets.map { existing ->
+                                    if (existing.id == latestWidget.id) {
+                                        existing.copy(gridX = position.first, gridY = position.second)
+                                    } else {
+                                        existing
+                                    }
+                                },
+                            )
+                        }
+                    }
+                },
+                onToggleDigitalControl = { controlWidget, turnOn ->
+                    sendCommand(
+                        ControlCommandMapper.digitalToggleCommand(
+                            control = controlWidget,
+                            turnOn = turnOn,
+                        ),
                     )
-                )
+                },
+                onSendPwmControl = { controlWidget, value ->
+                    sendCommand(
+                        ControlCommandMapper.pwmCommand(
+                            control = controlWidget,
+                            value = value,
+                        ),
+                    )
+                },
+                onSendServoControl = { controlWidget, value ->
+                    sendCommand(
+                        ControlCommandMapper.servoCommand(
+                            control = controlWidget,
+                            angle = value,
+                        ),
+                    )
+                },
+                onSendPulseControl = { controlWidget ->
+                    sendCommand(
+                        ControlCommandMapper.pulseCommand(
+                            control = controlWidget,
+                            durationMs = controlWidget.durationMs ?: 500,
+                        ),
+                    )
+                },
+                onReadAnalogControl = { controlWidget ->
+                    sendCommand(ControlCommandMapper.analogReadCommand(controlWidget))
+                },
+                onOpenHome = { currentScreen = LabLinkScreen.Home },
+                onOpenConnection = {
+                    refreshBluetoothState()
+                    currentScreen = LabLinkScreen.Connection
+                },
+                onOpenControls = { openMainMenuRespectingBoard() },
+                onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
+            )
+        } ?: MainMenuScreen(
+            isBluetoothConnected = isBluetoothConnectedForUi,
+            selectedBoard = selectedBoard,
+            onNewCustomControl = { createNewCustomControl() },
+            onMyControls = { currentScreen = LabLinkScreen.MyControls },
+            onJoystick = { currentScreen = LabLinkScreen.Joystick },
+            onCommunity = { openCommunity() },
+            onChangeBoard = { currentScreen = LabLinkScreen.BoardSelection },
+            onOpenHome = { currentScreen = LabLinkScreen.Home },
+            onOpenConnection = {
+                refreshBluetoothState()
+                currentScreen = LabLinkScreen.Connection
             },
-            onSendPwmControl = { control, value ->
-                sendCommand(
-                    ControlCommandMapper.pwmCommand(
-                        control = control,
-                        value = value,
-                    )
+            onOpenControls = { openMainMenuRespectingBoard() },
+            onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
+        )
+
+        LabLinkScreen.WidgetSettings -> WidgetSettingsScreen(
+            board = selectedBoard ?: BoardProfiles.defaultBoard,
+            widgetType = selectedModuleType ?: ControlType.DigitalToggle,
+            existingWidgets = activeCustomControl?.widgets.orEmpty(),
+            isBluetoothConnected = isBluetoothConnectedForUi,
+            onBack = { currentScreen = LabLinkScreen.CustomControlCanvas },
+            onSaveWidget = { widget ->
+                activeCustomControl = activeCustomControl?.copy(
+                    widgets = activeCustomControl?.widgets.orEmpty() + widget,
                 )
-            },
-            onSendPulseControl = { control ->
-                sendCommand(
-                    ControlCommandMapper.pulseCommand(
-                        control = control,
-                        durationMs = 500,
-                    )
-                )
-            },
-            onReadAnalogControl = { control ->
-                sendCommand(
-                    ControlCommandMapper.analogReadCommand(
-                        control = control,
-                    )
-                )
-            },
-            onTurnLedOn = {
-                sendCommand(
-                    ControlCommandMapper.digitalToggleCommand(
-                        control = DefaultControls.pin13DigitalOutput,
-                        turnOn = true,
-                    )
-                )
-            },
-            onTurnLedOff = {
-                sendCommand(
-                    ControlCommandMapper.digitalToggleCommand(
-                        control = DefaultControls.pin13DigitalOutput,
-                        turnOn = false,
-                    )
-                )
+                currentScreen = LabLinkScreen.CustomControlCanvas
             },
             onOpenHome = { currentScreen = LabLinkScreen.Home },
             onOpenConnection = {
                 refreshBluetoothState()
                 currentScreen = LabLinkScreen.Connection
             },
+            onOpenControls = { openMainMenuRespectingBoard() },
             onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
-            onOpenControls = { openControlsRespectingBoard() },
-            onCreateControl = { openModuleBoxRespectingBoard() },
-            onClearControls = {
-                configuredControls = emptyList()
-                ControlStorage.saveControls(context, emptyList())
-                controlsRefreshKey++
+        )
 
-                currentScreen = LabLinkScreen.Controls
+        LabLinkScreen.Joystick -> JoystickScreen(
+            isBluetoothConnected = isBluetoothConnectedForUi,
+            onBack = { currentScreen = LabLinkScreen.MainMenu },
+            onSendCommand = { command -> sendCommand(command) },
+            onOpenHome = { currentScreen = LabLinkScreen.Home },
+            onOpenConnection = {
+                refreshBluetoothState()
+                currentScreen = LabLinkScreen.Connection
             },
+            onOpenControls = { openMainMenuRespectingBoard() },
+            onOpenTerminal = { currentScreen = LabLinkScreen.Terminal },
         )
     }
-}
 }
 
 

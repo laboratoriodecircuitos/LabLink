@@ -1,13 +1,7 @@
-﻿package br.com.laboratoriodecircuitos.lablink.features.createcontrol
+package br.com.laboratoriodecircuitos.lablink.features.createcontrol
 
 import java.util.UUID
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,14 +10,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,14 +24,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.PowerSettingsNew
-import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
@@ -46,13 +37,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -71,26 +63,20 @@ import br.com.laboratoriodecircuitos.lablink.core.boards.BoardProfiles
 import br.com.laboratoriodecircuitos.lablink.core.boards.PinValidationResult
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlType
 import br.com.laboratoriodecircuitos.lablink.core.controls.LabLinkControl
-import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkDrawer
-import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkTopAppBar
 import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
 
 private val BgDeep = Color(0xFF000000)
-private val CardDark = Color(0xFF151515)
+private val TopBarDark = Color(0xFF050505)
+private val PanelDark = Color(0xFF151515)
+private val FieldDark = Color(0xFF2A2C2D)
+private val TileDark = Color(0xFF202124)
 private val AccentYellow = Color(0xFFFFE382)
 private val AccentPurple = Color(0xFFE5BEFF)
 private val AccentGreen = Color(0xFFC4FA8C)
 private val AccentDanger = Color(0xFFFF8A8A)
 private val TextDim = Color(0xFF8A8A8A)
 private val WhiteSoft = Color(0xFFFFFFFF)
-private val BorderSoft = Color.White.copy(alpha = 0.06f)
-
-private enum class CreateControlStep {
-    ChooseBoard,
-    ChooseType,
-    ChooseQuantity,
-    ConfigureControls,
-}
+private val BorderSoft = Color.White.copy(alpha = 0.08f)
 
 @Composable
 fun CreateControlScreen(
@@ -102,134 +88,69 @@ fun CreateControlScreen(
     onOpenConnection: () -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenControls: () -> Unit,
+    onBack: () -> Unit = onOpenControls,
     onSaveControls: (List<LabLinkControl>) -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
-    var drawerOpen by remember { mutableStateOf(false) }
-    var currentStep by remember(initialBoard?.type, initialControlType) {
-        mutableStateOf(
-            when {
-                initialBoard == null -> CreateControlStep.ChooseBoard
-                initialControlType != null -> CreateControlStep.ChooseQuantity
-                else -> CreateControlStep.ChooseType
-            },
-        )
-    }
+    val selectedBoard = initialBoard ?: BoardProfiles.defaultBoard
+    val selectedType = initialControlType ?: ControlType.DigitalToggle
+    val defaultName = selectedType.defaultName()
 
-    var selectedBoard by remember(initialBoard?.type) {
-        mutableStateOf(initialBoard)
-    }
-
-    var selectedType by remember(initialControlType) {
-        mutableStateOf(initialControlType)
-    }
-    var quantity by remember { mutableIntStateOf(1) }
-    var controlNames by remember { mutableStateOf(List(8) { "" }) }
-    var controlPins by remember { mutableStateOf(List(8) { "" }) }
+    var moduleName by remember(initialControlType) { mutableStateOf("") }
+    var selectedPin by remember(initialControlType) { mutableStateOf("") }
 
     val usedPinsFromPanel = existingControls
         .map { BoardPinValidator.normalizePin(it.pin) }
         .filter { it.isNotBlank() }
         .toSet()
 
-    fun updateName(index: Int, value: String) {
-        controlNames = controlNames.toMutableList().also {
-            it[index] = value
-        }
-    }
+    val availablePins = BoardPinValidator.availablePinsFor(
+        board = selectedBoard,
+        controlType = selectedType,
+        usedPins = usedPinsFromPanel,
+    )
 
-    fun selectPin(index: Int, value: String) {
-        controlPins = controlPins.toMutableList().also {
-            it[index] = BoardPinValidator.normalizePin(value)
-        }
-    }
+    val validationResult = BoardPinValidator.validatePinForControl(
+        board = selectedBoard,
+        controlType = selectedType,
+        pin = selectedPin,
+        usedPins = usedPinsFromPanel,
+    )
 
-    fun clearPins() {
-        controlPins = List(8) { "" }
-    }
     fun createUniqueModuleId(
         type: ControlType,
         pin: String,
     ): String {
         val normalizedType = type.name.lowercase()
-        val normalizedPin = BoardPinValidator
-            .normalizePin(pin)
-            .lowercase()
+        val normalizedPin = BoardPinValidator.normalizePin(pin).lowercase()
 
         return "${normalizedType}_${normalizedPin}_${UUID.randomUUID()}"
     }
 
-    fun usedPinsExcept(index: Int): Set<String> {
-        return controlPins
-            .take(quantity)
-            .mapIndexedNotNull { pinIndex, pin ->
-                if (pinIndex != index && pin.isNotBlank()) {
-                    BoardPinValidator.normalizePin(pin)
-                } else {
-                    null
-                }
-            }
-            .toSet()
-    }
+    fun buildControl(): LabLinkControl {
+        val normalizedPin = BoardPinValidator.normalizePin(selectedPin)
 
-    fun availablePinsAt(index: Int): List<BoardPin> {
-        val board = selectedBoard ?: BoardProfiles.defaultBoard
-        val type = selectedType ?: ControlType.DigitalToggle
-
-        return BoardPinValidator.availablePinsFor(
-            board = board,
-            controlType = type,
-            usedPins = usedPinsFromPanel + usedPinsExcept(index),
-        )
-    }
-
-    fun buildConfiguredControls(): List<LabLinkControl> {
-        val type = selectedType ?: ControlType.DigitalToggle
-
-        return (0 until quantity).map { index ->
-            val normalizedPin = BoardPinValidator.normalizePin(controlPins[index])
-            val fallbackName = when (type) {
-                ControlType.DigitalToggle -> "Liga / Desliga ${index + 1}"
-                ControlType.PwmSlider -> "Slider PWM ${index + 1}"
-                ControlType.ServoSlider -> "Servo ${index + 1}"
-                ControlType.PulseButton -> "Pulso ${index + 1}"
-                ControlType.AnalogRead -> "Leitura ${index + 1}"
-            }
-
-            LabLinkControl(
-                id = createUniqueModuleId(type, normalizedPin),
-                type = type,
-                name = controlNames[index].ifBlank { fallbackName },
-                pin = normalizedPin.removePrefix("D"),
-                minValue = when (type) {
-                    ControlType.PwmSlider -> 0
-                    ControlType.ServoSlider -> 0
-                    else -> null
-                },
-                maxValue = when (type) {
-                    ControlType.PwmSlider -> 255
-                    ControlType.ServoSlider -> 180
-                    else -> null
-                },
-                currentValue = when (type) {
-                    ControlType.PwmSlider -> 0
-                    ControlType.ServoSlider -> 90
-                    else -> null
-                },
-                isOn = false,
-            )
-        }
-    }
-
-    fun validatePinAt(index: Int): PinValidationResult {
-        val board = selectedBoard ?: BoardProfiles.defaultBoard
-        val type = selectedType ?: ControlType.DigitalToggle
-
-        return BoardPinValidator.validatePinForControl(
-            board = board,
-            controlType = type,
-            pin = controlPins[index],
-            usedPins = usedPinsFromPanel + usedPinsExcept(index),
+        return LabLinkControl(
+            id = createUniqueModuleId(selectedType, normalizedPin),
+            type = selectedType,
+            name = moduleName.ifBlank { defaultName },
+            pin = normalizedPin.removePrefix("D"),
+            minValue = when (selectedType) {
+                ControlType.PwmSlider -> 0
+                ControlType.ServoSlider -> 0
+                else -> null
+            },
+            maxValue = when (selectedType) {
+                ControlType.PwmSlider -> 255
+                ControlType.ServoSlider -> 180
+                else -> null
+            },
+            currentValue = when (selectedType) {
+                ControlType.PwmSlider -> 0
+                ControlType.ServoSlider -> 90
+                else -> null
+            },
+            isOn = false,
         )
     }
 
@@ -240,349 +161,113 @@ fun CreateControlScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.navigationBars)
                 .background(BgDeep),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .navigationBarsPadding()
                     .verticalScroll(scrollState)
-                    .padding(top = 112.dp, bottom = 40.dp),
+                    .padding(top = 96.dp, bottom = 28.dp),
             ) {
+                ModulePreviewHeader(
+                    type = selectedType,
+                    pin = selectedPin,
+                )
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .background(PanelDark)
+                        .padding(horizontal = 20.dp, vertical = 22.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
-                    when (currentStep) {
-                        CreateControlStep.ChooseBoard -> {
-                            HeaderSection(
-                                title = "Qual placa você está usando?",
-                                description = "A escolha da placa ajuda o LabLink a mostrar apenas os pinos corretos para cada tipo de controle.",
-                            )
+                    SettingsTextField(
+                        value = moduleName,
+                        placeholder = defaultName,
+                        onValueChange = { moduleName = it },
+                    )
 
-                            BoardProfiles.supportedBoards.forEach { board ->
-                                BoardCard(
-                                    board = board,
-                                    selected = selectedBoard?.type == board.type,
-                                    onClick = {
-                                        selectedBoard = board
-                                        clearPins()
-                                    },
-                                )
-                            }
+                    SettingsDivider()
 
-                            ContinueCard(
-                                enabled = selectedBoard != null,
-                                title = if (selectedBoard == null) {
-                                    "Selecione uma placa para continuar"
-                                } else {
-                                    "Continuar"
-                                },
-                                description = if (selectedBoard == null) {
-                                    "Nesta versão, começaremos com Arduino Uno / Nano."
-                                } else {
-                                    "Agora escolha o tipo de controle que deseja criar."
-                                },
-                                onClick = {
-                                    if (selectedBoard != null) {
-                                        currentStep = CreateControlStep.ChooseType
-                                    }
-                                },
-                            )
-                        }
+                    SectionLabel(text = if (selectedType == ControlType.AnalogRead) "PINO" else "OUTPUT")
 
-                        CreateControlStep.ChooseType -> {
-                            HeaderSection(
-                                title = "Que módulo você quer adicionar?",
-                                description = "Escolha o tipo de módulo que será usado no seu painel Arduino.",
-                            )
+                    PinSelector(
+                        selectedPin = selectedPin,
+                        availablePins = availablePins,
+                        validationResult = validationResult,
+                        onSelectPin = { selectedPin = BoardPinValidator.normalizePin(it) },
+                    )
 
-                            SelectedBoardSummary(
-                                board = selectedBoard,
-                                onBack = {
-                                    currentStep = CreateControlStep.ChooseBoard
-                                },
-                            )
+                    SettingsDivider()
 
-                            ControlType.values().forEach { type ->
-                                ControlTypeCard(
-                                    type = type,
-                                    selected = selectedType == type,
-                                    onClick = {
-                                        selectedType = type
-                                        clearPins()
-                                    },
-                                )
-                            }
+                    SectionLabel(text = selectedType.parametersTitle())
 
-                            ContinueCard(
-                                enabled = selectedType != null,
-                                title = if (selectedType == null) {
-                                    "Selecione um módulo para continuar"
-                                } else {
-                                    "Continuar"
-                                },
-                                description = if (selectedType == null) {
-                                    "Depois disso, o LabLink vai perguntar a quantidade de módulos e os pinos usados."
-                                } else {
-                                    "Definir quantos módulos ${selectedType?.displayName} serão criados."
-                                },
-                                onClick = {
-                                    if (selectedType != null) {
-                                        currentStep = CreateControlStep.ChooseQuantity
-                                    }
-                                },
-                            )
-                        }
+                    ModuleParameters(type = selectedType)
 
-                        CreateControlStep.ChooseQuantity -> {
-                            val type = selectedType
-
-                            HeaderSection(
-                                title = "Quantos controles?",
-                                description = if (type == null) {
-                                    "Defina a quantidade de controles que deseja criar."
-                                } else {
-                                    "Escolha quantos controles ${type.displayName} você quer adicionar ao projeto."
-                                },
-                            )
-
-                            SelectedBoardSummary(
-                                board = selectedBoard,
-                                onBack = {
-                                    currentStep = CreateControlStep.ChooseBoard
-                                },
-                            )
-
-                            SelectedTypeSummary(
-                                type = type,
-                                label = "Tipo selecionado",
-                                onBack = {
-                                    currentStep = CreateControlStep.ChooseType
-                                },
-                            )
-
-                            QuantitySelector(
-                                quantity = quantity,
-                                onDecrease = {
-                                    if (quantity > 1) {
-                                        quantity--
-                                    }
-                                },
-                                onIncrease = {
-                                    if (quantity < 8) {
-                                        quantity++
-                                    }
-                                },
-                            )
-
-                            ContinueCard(
-                                enabled = true,
-                                title = "Continuar",
-                                description = "Agora vamos escolher os pinos de cada módulo.",
-                                onClick = {
-                                    currentStep = CreateControlStep.ConfigureControls
-                                },
-                            )
-                        }
-
-                        CreateControlStep.ConfigureControls -> {
-                            val type = selectedType
-                            val validationResults = (0 until quantity).map { index ->
-                                validatePinAt(index)
-                            }
-
-                            val allPinsValid = validationResults.all { it == PinValidationResult.Valid }
-
-                            HeaderSection(
-                                title = "Escolha os pinos",
-                                description = "O LabLink mostra apenas os pinos compatíveis com a placa e o tipo de módulo escolhido.",
-                            )
-
-                            SelectedBoardSummary(
-                                board = selectedBoard,
-                                onBack = {
-                                    currentStep = CreateControlStep.ChooseBoard
-                                },
-                            )
-
-                            SelectedTypeSummary(
-                                type = type,
-                                label = "$quantity módulo${if (quantity > 1) "s" else ""}",
-                                onBack = {
-                                    currentStep = CreateControlStep.ChooseQuantity
-                                },
-                            )
-
-                            repeat(quantity) { index ->
-                                ControlConfigCard(
-                                    index = index,
-                                    name = controlNames[index],
-                                    selectedPin = controlPins[index],
-                                    type = type,
-                                    availablePins = availablePinsAt(index),
-                                    validationResult = validationResults[index],
-                                    onNameChange = { updateName(index, it) },
-                                    onSelectPin = { selectPin(index, it) },
-                                )
-                            }
-
-                            ContinueCard(
-                                enabled = allPinsValid,
-                                title = if (allPinsValid) "Salvar módulos" else "Escolha os pinos dos módulos",
-                                description = if (allPinsValid) {
-                                    "Todos os módulos estão com pinos válidos e não repetidos."
-                                } else {
-                                    "Selecione um pino disponível para cada módulo."
-                                },
-                                onClick = {
-                                    onSaveControls(buildConfiguredControls())
-                                },
-                            )
-                        }
-                    }
+                    SaveSettingsButton(
+                        enabled = validationResult == PinValidationResult.Valid,
+                        onClick = { onSaveControls(listOf(buildControl())) },
+                    )
                 }
             }
 
-            LabLinkTopAppBar(
-                title = "Adicionar módulo",
+            SettingsTopBar(
+                title = "${selectedType.displayName} Settings",
                 isBluetoothConnected = isBluetoothConnected,
-                onOpenDrawer = { drawerOpen = true },
+                onBack = onBack,
             )
-
-            AnimatedVisibility(
-                visible = drawerOpen,
-                enter = fadeIn(animationSpec = tween(180)) + slideInHorizontally(
-                    animationSpec = tween(260),
-                    initialOffsetX = { -it },
-                ),
-                exit = fadeOut(animationSpec = tween(160)) + slideOutHorizontally(
-                    animationSpec = tween(220),
-                    targetOffsetX = { -it },
-                ),
-            ) {
-                LabLinkDrawer(
-                    onClose = { drawerOpen = false },
-                    onOpenHome = {
-                        drawerOpen = false
-                        onOpenHome()
-                    },
-                    onOpenBluetooth = {
-                        drawerOpen = false
-                        onOpenConnection()
-                    },
-                    onOpenControls = {
-                        drawerOpen = false
-                        onOpenControls()
-                    },
-                    onOpenTerminal = {
-                        drawerOpen = false
-                        onOpenTerminal()
-                    },
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun HeaderSection(
+private fun SettingsTopBar(
     title: String,
-    description: String,
+    isBluetoothConnected: Boolean,
+    onBack: () -> Unit,
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp, bottom = 4.dp),
+            .background(TopBarDark.copy(alpha = 0.98f))
+            .border(1.dp, BorderSoft)
+            .statusBarsPadding()
+            .height(104.dp)
+            .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
     ) {
+        Icon(
+            imageVector = Icons.Rounded.ArrowBack,
+            contentDescription = null,
+            tint = WhiteSoft,
+            modifier = Modifier
+                .size(31.dp)
+                .clickable { onBack() },
+        )
+
         Text(
             text = title,
             color = WhiteSoft,
-            fontSize = 28.sp,
-            lineHeight = 34.sp,
+            fontSize = 25.sp,
+            lineHeight = 30.sp,
             fontWeight = FontWeight.SemiBold,
-            letterSpacing = (-0.4).sp,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = description,
-            color = WhiteSoft.copy(alpha = 0.78f),
-            fontSize = 16.sp,
-            lineHeight = 24.sp,
-        )
-    }
-}
-
-@Composable
-private fun BoardCard(
-    board: BoardProfile,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                color = if (selected) AccentGreen else CardDark,
-                shape = RoundedCornerShape(24.dp),
-            )
-            .border(
-                width = 1.dp,
-                color = if (selected) AccentGreen.copy(alpha = 0.75f) else BorderSoft,
-                shape = RoundedCornerShape(24.dp),
-            )
-            .clickable { onClick() }
-            .padding(18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
         Box(
             modifier = Modifier
-                .size(50.dp)
-                .background(
-                    color = if (selected) Color.Black.copy(alpha = 0.10f) else AccentGreen.copy(alpha = 0.16f),
-                    shape = CircleShape,
-                ),
+                .size(38.dp)
+                .background(PanelDark, RoundedCornerShape(5.dp))
+                .border(1.dp, BorderSoft, RoundedCornerShape(5.dp)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Rounded.Memory,
+                imageVector = Icons.Rounded.Info,
                 contentDescription = null,
-                tint = if (selected) Color.Black else AccentGreen,
-                modifier = Modifier.size(25.dp),
-            )
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-        ) {
-            Text(
-                text = board.displayName,
-                color = if (selected) Color.Black else WhiteSoft,
-                fontSize = 18.sp,
-                lineHeight = 23.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = board.description,
-                color = if (selected) Color.Black.copy(alpha = 0.68f) else TextDim,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-            )
-        }
-
-        if (selected) {
-            Icon(
-                imageVector = Icons.Rounded.Check,
-                contentDescription = null,
-                tint = Color.Black,
+                tint = if (isBluetoothConnected) AccentGreen else TextDim,
                 modifier = Modifier.size(22.dp),
             )
         }
@@ -590,401 +275,121 @@ private fun BoardCard(
 }
 
 @Composable
-private fun SelectedBoardSummary(
-    board: BoardProfile?,
-    onBack: () -> Unit,
-) {
-    if (board == null) return
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(22.dp))
-            .border(1.dp, BorderSoft, RoundedCornerShape(22.dp))
-            .padding(18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(46.dp)
-                .background(AccentGreen.copy(alpha = 0.16f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Memory,
-                contentDescription = null,
-                tint = AccentGreen,
-                modifier = Modifier.size(23.dp),
-            )
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-        ) {
-            Text(
-                text = board.displayName,
-                color = WhiteSoft,
-                fontSize = 17.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-
-            Spacer(modifier = Modifier.height(5.dp))
-
-            Text(
-                text = "Placa selecionada",
-                color = TextDim,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .background(Color.White.copy(alpha = 0.05f), CircleShape)
-                .clickable { onBack() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.ArrowBack,
-                contentDescription = null,
-                tint = WhiteSoft,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ControlTypeCard(
+private fun ModulePreviewHeader(
     type: ControlType,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    val accent = type.accentColor()
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                color = if (selected) accent else CardDark,
-                shape = RoundedCornerShape(24.dp),
-            )
-            .border(
-                width = 1.dp,
-                color = if (selected) accent.copy(alpha = 0.75f) else BorderSoft,
-                shape = RoundedCornerShape(24.dp),
-            )
-            .clickable { onClick() }
-            .padding(18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(50.dp)
-                .background(
-                    color = if (selected) Color.Black.copy(alpha = 0.10f) else accent.copy(alpha = 0.16f),
-                    shape = CircleShape,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = type.icon(),
-                contentDescription = null,
-                tint = if (selected) Color.Black else accent,
-                modifier = Modifier.size(25.dp),
-            )
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-        ) {
-            Text(
-                text = type.displayName,
-                color = if (selected) Color.Black else WhiteSoft,
-                fontSize = 18.sp,
-                lineHeight = 23.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = type.description,
-                color = if (selected) Color.Black.copy(alpha = 0.68f) else TextDim,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-            )
-        }
-
-        if (selected) {
-            Icon(
-                imageVector = Icons.Rounded.Check,
-                contentDescription = null,
-                tint = Color.Black,
-                modifier = Modifier.size(22.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun SelectedTypeSummary(
-    type: ControlType?,
-    label: String,
-    onBack: () -> Unit,
-) {
-    if (type == null) return
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(22.dp))
-            .border(1.dp, BorderSoft, RoundedCornerShape(22.dp))
-            .padding(18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(46.dp)
-                .background(type.accentColor().copy(alpha = 0.16f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = type.icon(),
-                contentDescription = null,
-                tint = type.accentColor(),
-                modifier = Modifier.size(23.dp),
-            )
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-        ) {
-            Text(
-                text = type.displayName,
-                color = WhiteSoft,
-                fontSize = 17.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-
-            Spacer(modifier = Modifier.height(5.dp))
-
-            Text(
-                text = label,
-                color = TextDim,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .background(Color.White.copy(alpha = 0.05f), CircleShape)
-                .clickable { onBack() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.ArrowBack,
-                contentDescription = null,
-                tint = WhiteSoft,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun QuantitySelector(
-    quantity: Int,
-    onDecrease: () -> Unit,
-    onIncrease: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(30.dp))
-            .border(1.dp, BorderSoft, RoundedCornerShape(30.dp))
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = "Quantidade",
-            color = TextDim,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-            fontWeight = FontWeight.Medium,
-        )
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            QuantityButton(
-                icon = Icons.Rounded.Remove,
-                enabled = quantity > 1,
-                onClick = onDecrease,
-            )
-
-            Text(
-                text = quantity.toString(),
-                color = WhiteSoft,
-                fontSize = 64.sp,
-                lineHeight = 70.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = (-1.2).sp,
-            )
-
-            QuantityButton(
-                icon = Icons.Rounded.Add,
-                enabled = quantity < 8,
-                onClick = onIncrease,
-            )
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        Text(
-            text = "Máximo recomendado nesta versão: 8 controles.",
-            color = TextDim,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-        )
-    }
-}
-
-@Composable
-private fun QuantityButton(
-    icon: ImageVector,
-    enabled: Boolean,
-    onClick: () -> Unit,
+    pin: String,
 ) {
     Box(
         modifier = Modifier
-            .size(58.dp)
-            .alpha(if (enabled) 1f else 0.35f)
-            .background(
-                color = if (enabled) AccentPurple else Color.White.copy(alpha = 0.05f),
-                shape = CircleShape,
-            )
-            .clickable(enabled = enabled) { onClick() },
+            .fillMaxWidth()
+            .height(230.dp)
+            .background(BgDeep)
+            .settingsGridBackground(),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (enabled) Color.Black else TextDim,
-            modifier = Modifier.size(28.dp),
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(132.dp)
+                    .background(TileDark.copy(alpha = 0.88f), RoundedCornerShape(8.dp))
+                    .border(2.dp, type.accentColor().copy(alpha = 0.52f), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = type.icon(),
+                    contentDescription = null,
+                    tint = type.accentColor(),
+                    modifier = Modifier.size(62.dp),
+                )
+            }
+
+            Text(
+                text = if (pin.isBlank()) "PIN" else BoardPinValidator.normalizePin(pin),
+                color = type.accentColor(),
+                fontSize = 13.sp,
+                lineHeight = 15.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+            )
+        }
     }
 }
 
 @Composable
-private fun ControlConfigCard(
-    index: Int,
-    name: String,
-    selectedPin: String,
-    type: ControlType?,
-    availablePins: List<BoardPin>,
-    validationResult: PinValidationResult,
-    onNameChange: (String) -> Unit,
-    onSelectPin: (String) -> Unit,
+private fun SettingsTextField(
+    value: String,
+    placeholder: String,
+    onValueChange: (String) -> Unit,
 ) {
-    val defaultName = when (type) {
-        ControlType.DigitalToggle -> "Liga / Desliga ${index + 1}"
-        ControlType.PwmSlider -> "Slider PWM ${index + 1}"
-        ControlType.ServoSlider -> "Servo ${index + 1}"
-        ControlType.PulseButton -> "Pulso ${index + 1}"
-        ControlType.AnalogRead -> "Leitura ${index + 1}"
-        null -> "Módulo ${index + 1}"
-    }
-
-    val isValid = validationResult == PinValidationResult.Valid
-    val hasPin = selectedPin.isNotBlank()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(24.dp))
-            .border(
-                width = 1.dp,
-                color = when {
-                    isValid -> AccentGreen.copy(alpha = 0.45f)
-                    hasPin -> AccentDanger.copy(alpha = 0.55f)
-                    else -> BorderSoft
-                },
-                shape = RoundedCornerShape(24.dp),
-            )
-            .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Text(
-            text = "Módulo ${index + 1}",
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        textStyle = TextStyle(
             color = WhiteSoft,
-            fontSize = 18.sp,
-            lineHeight = 23.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-
-        LabTextField(
-            label = "Nome opcional",
-            value = name,
-            placeholder = defaultName,
+            fontSize = 28.sp,
+            lineHeight = 34.sp,
+            fontWeight = FontWeight.Normal,
+        ),
+        cursorBrush = SolidColor(AccentPurple),
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Sentences,
             keyboardType = KeyboardType.Text,
-            onValueChange = onNameChange,
-        )
+        ),
+        decorationBox = { innerTextField ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(82.dp)
+                    .background(FieldDark, RoundedCornerShape(2.dp))
+                    .padding(horizontal = 20.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                if (value.isBlank()) {
+                    Text(
+                        text = placeholder,
+                        color = WhiteSoft.copy(alpha = 0.52f),
+                        fontSize = 28.sp,
+                        lineHeight = 34.sp,
+                    )
+                }
 
-        PinSelector(
-            selectedPin = selectedPin,
-            availablePins = availablePins,
-            onSelectPin = onSelectPin,
-        )
-    }
+                innerTextField()
+            }
+        },
+    )
 }
 
 @Composable
 private fun PinSelector(
     selectedPin: String,
     availablePins: List<BoardPin>,
+    validationResult: PinValidationResult,
     onSelectPin: (String) -> Unit,
 ) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = "Pino",
-            color = TextDim,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
-            fontWeight = FontWeight.Medium,
-        )
-
         if (availablePins.isEmpty()) {
             Text(
-                text = "Não há pinos disponíveis para este tipo de controle.",
+                text = "Não há pinos disponíveis para este módulo.",
                 color = AccentDanger,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
+                fontSize = 13.sp,
+                lineHeight = 17.sp,
             )
             return
         }
 
-        availablePins.chunked(4).forEach { rowPins ->
+        availablePins.chunked(3).forEach { rowPins ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 rowPins.forEach { pin ->
-                    PinChip(
+                    PinChoice(
                         pin = pin,
                         selected = BoardPinValidator.normalizePin(selectedPin) == BoardPinValidator.normalizePin(pin.id),
                         onClick = { onSelectPin(pin.id) },
@@ -992,32 +397,25 @@ private fun PinSelector(
                     )
                 }
 
-                repeat(4 - rowPins.size) {
+                repeat(3 - rowPins.size) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
 
-        if (selectedPin.isBlank()) {
+        BoardPinValidator.validationMessage(validationResult)?.let { message ->
             Text(
-                text = "Escolha um pino disponível.",
-                color = TextDim,
+                text = message,
+                color = if (validationResult == PinValidationResult.EmptyPin) TextDim else AccentDanger,
                 fontSize = 12.sp,
-                lineHeight = 16.sp,
-            )
-        } else {
-            Text(
-                text = "${BoardPinValidator.normalizePin(selectedPin)} selecionado.",
-                color = AccentGreen,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
+                lineHeight = 15.sp,
             )
         }
     }
 }
 
 @Composable
-private fun PinChip(
+private fun PinChoice(
     pin: BoardPin,
     selected: Boolean,
     onClick: () -> Unit,
@@ -1025,24 +423,24 @@ private fun PinChip(
 ) {
     Box(
         modifier = modifier
-            .height(44.dp)
+            .height(80.dp)
             .background(
-                color = if (selected) AccentGreen else Color.White.copy(alpha = 0.05f),
-                shape = RoundedCornerShape(14.dp),
+                color = if (selected) AccentPurple.copy(alpha = 0.16f) else FieldDark,
+                shape = RoundedCornerShape(2.dp),
             )
             .border(
-                width = 1.dp,
-                color = if (selected) AccentGreen.copy(alpha = 0.75f) else BorderSoft,
-                shape = RoundedCornerShape(14.dp),
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) AccentPurple else BorderSoft,
+                shape = RoundedCornerShape(2.dp),
             )
             .clickable { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = pin.label,
-            color = if (selected) Color.Black else WhiteSoft,
-            fontSize = 14.sp,
-            lineHeight = 18.sp,
+            color = if (selected) AccentPurple else WhiteSoft,
+            fontSize = 23.sp,
+            lineHeight = 27.sp,
             fontWeight = FontWeight.SemiBold,
             fontFamily = FontFamily.Monospace,
         )
@@ -1050,130 +448,182 @@ private fun PinChip(
 }
 
 @Composable
-private fun LabTextField(
-    label: String,
-    value: String,
-    placeholder: String,
-    keyboardType: KeyboardType,
-    onValueChange: (String) -> Unit,
-    monospace: Boolean = false,
+private fun ModuleParameters(
+    type: ControlType,
 ) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    when (type) {
+        ControlType.DigitalToggle -> ToggleParameterRow()
+        ControlType.PwmSlider -> RangeParameterRow(min = "0", max = "255")
+        ControlType.ServoSlider -> RangeParameterRow(min = "0°", max = "180°")
+        ControlType.PulseButton -> SingleParameterBox(label = "DURAÇÃO", value = "500 ms")
+        ControlType.AnalogRead -> SingleParameterBox(label = "ESCALA", value = "0 - 1023")
+    }
+}
+
+@Composable
+private fun ToggleParameterRow() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = label,
-            color = TextDim,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
-            fontWeight = FontWeight.Medium,
+            text = "PUSH",
+            color = WhiteSoft,
+            fontSize = 22.sp,
+            lineHeight = 26.sp,
         )
 
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            textStyle = TextStyle(
-                color = WhiteSoft,
-                fontSize = 16.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.Medium,
-                fontFamily = if (monospace) FontFamily.Monospace else FontFamily.Default,
-            ),
-            cursorBrush = SolidColor(AccentGreen),
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Sentences,
-                keyboardType = keyboardType,
-            ),
-            decorationBox = { innerTextField ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
-                        .border(1.dp, BorderSoft, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 16.dp, vertical = 15.dp),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    if (value.isBlank()) {
-                        Text(
-                            text = placeholder,
-                            color = TextDim.copy(alpha = 0.75f),
-                            fontSize = 16.sp,
-                            lineHeight = 22.sp,
-                            fontWeight = FontWeight.Medium,
-                            fontFamily = if (monospace) FontFamily.Monospace else FontFamily.Default,
-                        )
-                    }
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 20.dp)
+                .size(width = 92.dp, height = 46.dp)
+                .border(3.dp, WhiteSoft, RoundedCornerShape(999.dp))
+                .padding(4.dp),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .background(WhiteSoft, CircleShape),
+            )
+        }
 
-                    innerTextField()
-                }
-            },
+        Text(
+            text = "SWITCH",
+            color = TextDim,
+            fontSize = 22.sp,
+            lineHeight = 26.sp,
         )
     }
 }
 
 @Composable
-private fun ContinueCard(
+private fun RangeParameterRow(
+    min: String,
+    max: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        SingleParameterBox(
+            label = "MIN",
+            value = min,
+            modifier = Modifier.weight(1f),
+        )
+
+        SingleParameterBox(
+            label = "MAX",
+            value = max,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun SingleParameterBox(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .height(76.dp)
+            .background(FieldDark, RoundedCornerShape(2.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            color = TextDim,
+            fontSize = 11.sp,
+            lineHeight = 13.sp,
+            fontWeight = FontWeight.Bold,
+        )
+
+        Text(
+            text = value,
+            color = WhiteSoft,
+            fontSize = 24.sp,
+            lineHeight = 28.sp,
+        )
+    }
+}
+
+@Composable
+private fun SaveSettingsButton(
     enabled: Boolean,
-    title: String,
-    description: String,
     onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (enabled) 1f else 0.52f)
-            .background(
-                color = if (enabled) AccentGreen else CardDark,
-                shape = RoundedCornerShape(24.dp),
-            )
-            .border(
-                width = 1.dp,
-                color = if (enabled) AccentGreen.copy(alpha = 0.75f) else BorderSoft,
-                shape = RoundedCornerShape(24.dp),
-            )
-            .clickable(enabled = enabled) { onClick() }
-            .padding(18.dp),
+            .height(62.dp)
+            .alpha(if (enabled) 1f else 0.46f)
+            .background(if (enabled) AccentPurple else FieldDark, RoundedCornerShape(3.dp))
+            .clickable(enabled = enabled) { onClick() },
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .background(
-                    color = if (enabled) Color.Black.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.04f),
-                    shape = CircleShape,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Check,
-                contentDescription = null,
-                tint = if (enabled) Color.Black else TextDim,
-                modifier = Modifier.size(22.dp),
-            )
-        }
+        Icon(
+            imageVector = Icons.Rounded.Check,
+            contentDescription = null,
+            tint = if (enabled) Color.Black.copy(alpha = 0.78f) else TextDim,
+            modifier = Modifier.size(24.dp),
+        )
 
-        Column(
-            modifier = Modifier.weight(1f),
-        ) {
-            Text(
-                text = title,
-                color = if (enabled) Color.Black else WhiteSoft,
-                fontSize = 17.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
+        Text(
+            text = "Salvar",
+            color = if (enabled) Color.Black.copy(alpha = 0.78f) else TextDim,
+            fontSize = 20.sp,
+            lineHeight = 24.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 10.dp),
+        )
+    }
+}
 
-            Spacer(modifier = Modifier.height(5.dp))
+@Composable
+private fun SectionLabel(
+    text: String,
+) {
+    Text(
+        text = text,
+        color = TextDim,
+        fontSize = 13.sp,
+        lineHeight = 16.sp,
+        fontWeight = FontWeight.Bold,
+    )
+}
 
-            Text(
-                text = description,
-                color = if (enabled) Color.Black.copy(alpha = 0.68f) else TextDim,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-            )
-        }
+@Composable
+private fun SettingsDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(BorderSoft),
+    )
+}
+
+private fun ControlType.defaultName(): String {
+    return when (this) {
+        ControlType.DigitalToggle -> "Lâmpada"
+        ControlType.PwmSlider -> "PWM"
+        ControlType.ServoSlider -> "Servo"
+        ControlType.PulseButton -> "Pulso"
+        ControlType.AnalogRead -> "Leitura"
+    }
+}
+
+private fun ControlType.parametersTitle(): String {
+    return when (this) {
+        ControlType.DigitalToggle -> "MODE"
+        ControlType.PwmSlider -> "RANGE"
+        ControlType.ServoSlider -> "ANGLE"
+        ControlType.PulseButton -> "PULSE"
+        ControlType.AnalogRead -> "READ"
     }
 }
 
@@ -1189,11 +639,56 @@ private fun ControlType.icon(): ImageVector {
 
 private fun ControlType.accentColor(): Color {
     return when (this) {
-        ControlType.DigitalToggle -> AccentYellow
+        ControlType.DigitalToggle -> AccentGreen
         ControlType.PwmSlider -> AccentPurple
         ControlType.ServoSlider -> AccentGreen
         ControlType.PulseButton -> AccentYellow
         ControlType.AnalogRead -> AccentPurple
+    }
+}
+
+private fun Modifier.settingsGridBackground(): Modifier {
+    return drawBehind {
+        val step = 8.dp.toPx()
+        val majorStep = step * 6f
+        val dotColor = Color.White.copy(alpha = 0.045f)
+        val lineColor = Color.White.copy(alpha = 0.032f)
+
+        var x = 0f
+        while (x <= size.width) {
+            drawLine(
+                color = lineColor,
+                start = Offset(x, 0f),
+                end = Offset(x, size.height),
+                strokeWidth = 1f,
+            )
+            x += majorStep
+        }
+
+        var y = 0f
+        while (y <= size.height) {
+            drawLine(
+                color = lineColor,
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = 1f,
+            )
+            y += majorStep
+        }
+
+        var dotX = 0f
+        while (dotX <= size.width) {
+            var dotY = 0f
+            while (dotY <= size.height) {
+                drawCircle(
+                    color = dotColor,
+                    radius = 0.8f,
+                    center = Offset(dotX, dotY),
+                )
+                dotY += step
+            }
+            dotX += step
+        }
     }
 }
 
@@ -1204,6 +699,7 @@ private fun CreateControlScreenPreview() {
         CreateControlScreen(
             isBluetoothConnected = true,
             initialBoard = BoardProfiles.defaultBoard,
+            initialControlType = ControlType.DigitalToggle,
             existingControls = emptyList(),
             onOpenHome = {},
             onOpenConnection = {},
@@ -1213,15 +709,3 @@ private fun CreateControlScreenPreview() {
         )
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-

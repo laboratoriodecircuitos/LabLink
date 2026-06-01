@@ -394,7 +394,7 @@ private fun DeviceSelectionContent(
     onPairDiscoveredDevice: (BluetoothDiscoveredDevice) -> Unit,
 ) {
     StepCard(
-        step = "Passo 2",
+        step = "Módulos pareados",
         title = "Escolha o módulo já pareado",
         description = "Toque no HC-05/HC-06 que você quer conectar ao Arduino.",
         icon = Icons.Rounded.Devices,
@@ -426,7 +426,7 @@ private fun SelectedDeviceContent(
     onSearchAgain: () -> Unit,
 ) {
     StepCard(
-        step = "Passo 3",
+        step = "Dispositivo selecionado",
         title = "${device.name} selecionado",
         description = "Agora abra a comunicação Bluetooth com o Arduino.",
         icon = Icons.Rounded.Link,

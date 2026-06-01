@@ -3,6 +3,18 @@
 enum class BoardType(
     val displayName: String,
 ) {
+    ArduinoUno(
+        displayName = "Arduino Uno",
+    ),
+
+    ArduinoNano(
+        displayName = "Arduino Nano",
+    ),
+
+    ArduinoProMini(
+        displayName = "Arduino Pro Mini",
+    ),
+
     ArduinoUnoNano(
         displayName = "Arduino Uno / Nano",
     ),

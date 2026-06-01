@@ -1,4 +1,4 @@
-﻿package br.com.laboratoriodecircuitos.lablink.features.controls
+package br.com.laboratoriodecircuitos.lablink.features.controls
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -11,29 +11,32 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Lightbulb
-import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AddCircleOutline
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PowerSettingsNew
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
@@ -43,43 +46,45 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import br.com.laboratoriodecircuitos.lablink.core.boards.BoardProfile
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothConnectionStatus
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothDeviceInfo
 import br.com.laboratoriodecircuitos.lablink.core.bluetooth.BluetoothUiState
+import br.com.laboratoriodecircuitos.lablink.core.boards.BoardPinValidator
+import br.com.laboratoriodecircuitos.lablink.core.boards.BoardProfile
 import br.com.laboratoriodecircuitos.lablink.core.controls.ControlType
 import br.com.laboratoriodecircuitos.lablink.core.controls.DefaultControls
 import br.com.laboratoriodecircuitos.lablink.core.controls.LabLinkControl
 import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkDrawer
-import br.com.laboratoriodecircuitos.lablink.ui.components.LabLinkTopAppBar
 import br.com.laboratoriodecircuitos.lablink.ui.theme.LabLinkTheme
 
 private val BgDeep = Color(0xFF000000)
-private val CardDark = Color(0xFF151515)
+private val TopBarDark = Color(0xFF050505)
+private val IconButtonDark = Color(0xFF151515)
+private val WidgetDark = Color(0xFF171818)
+private val WidgetPanel = Color(0xFF202124)
 private val AccentYellow = Color(0xFFFFE382)
 private val AccentGreen = Color(0xFFC4FA8C)
 private val AccentPurple = Color(0xFFE5BEFF)
 private val TextDim = Color(0xFF8A8A8A)
 private val WhiteSoft = Color(0xFFFFFFFF)
-private val BorderSoft = Color.White.copy(alpha = 0.06f)
+private val BorderSoft = Color.White.copy(alpha = 0.09f)
 
 @Composable
 fun ControlsScreen(
@@ -90,6 +95,7 @@ fun ControlsScreen(
     onSendPing: () -> Unit,
     onToggleDigitalControl: (LabLinkControl, Boolean) -> Unit = { _, _ -> },
     onSendPwmControl: (LabLinkControl, Int) -> Unit = { _, _ -> },
+    onSendServoControl: (LabLinkControl, Int) -> Unit = { _, _ -> },
     onSendPulseControl: (LabLinkControl) -> Unit = {},
     onReadAnalogControl: (LabLinkControl) -> Unit = {},
     onTurnLedOn: () -> Unit,
@@ -101,51 +107,40 @@ fun ControlsScreen(
     onCreateControl: () -> Unit = {},
     onClearControls: () -> Unit = {},
 ) {
-    val scrollState = rememberScrollState()
     var drawerOpen by remember { mutableStateOf(false) }
-
-    val displayedControls = remember {
-        mutableStateListOf<LabLinkControl>().apply {
-            addAll(controls)
-        }
-    }
-
     val isConnected = bluetoothState.status == BluetoothConnectionStatus.Connected
-    val hasCustomControls = displayedControls.isNotEmpty()
     val digitalStates = remember { mutableStateMapOf<String, Boolean>() }
-    val pwmStates = remember { mutableStateMapOf<String, Int>() }
+    val sliderStates = remember { mutableStateMapOf<String, Int>() }
     val analogReadStates = remember { mutableStateMapOf<String, Int>() }
-    val pwmLastSentAt = remember { mutableStateMapOf<String, Long>() }
-    val pwmLastSentValues = remember { mutableStateMapOf<String, Int>() }
+    val sliderLastSentAt = remember { mutableStateMapOf<String, Long>() }
+    val sliderLastSentValues = remember { mutableStateMapOf<String, Int>() }
 
     LaunchedEffect(controlsRefreshKey, controls) {
-        displayedControls.clear()
-        displayedControls.addAll(controls)
-
         digitalStates.clear()
-        pwmStates.clear()
+        sliderStates.clear()
         analogReadStates.clear()
-        pwmLastSentAt.clear()
-        pwmLastSentValues.clear()
+        sliderLastSentAt.clear()
+        sliderLastSentValues.clear()
 
-        displayedControls.forEach { control ->
+        controls.forEach { control ->
             when (control.type) {
                 ControlType.DigitalToggle -> digitalStates[control.id] = control.isOn
-                ControlType.PwmSlider -> pwmStates[control.id] = control.currentValue ?: 0
+                ControlType.PwmSlider -> sliderStates[control.id] = control.currentValue ?: 0
+                ControlType.ServoSlider -> sliderStates[control.id] = control.currentValue ?: 90
                 ControlType.AnalogRead -> analogReadStates[control.id] = control.currentValue ?: 0
-                else -> Unit
+                ControlType.PulseButton -> Unit
             }
         }
     }
 
     LaunchedEffect(bluetoothState.lastReceivedMessage) {
         when (bluetoothState.lastReceivedMessage) {
-            "OK:LED_ON" -> displayedControls
-                .filter { it.type == ControlType.DigitalToggle && it.pin == "13" }
+            "OK:LED_ON" -> controls
+                .filter { it.type == ControlType.DigitalToggle && BoardPinValidator.normalizePin(it.pin) == "D13" }
                 .forEach { digitalStates[it.id] = true }
 
-            "OK:LED_OFF" -> displayedControls
-                .filter { it.type == ControlType.DigitalToggle && it.pin == "13" }
+            "OK:LED_OFF" -> controls
+                .filter { it.type == ControlType.DigitalToggle && BoardPinValidator.normalizePin(it.pin) == "D13" }
                 .forEach { digitalStates[it.id] = false }
 
             else -> {
@@ -153,12 +148,15 @@ fun ControlsScreen(
 
                 if (message.startsWith("OK:READ:")) {
                     val parts = message.split(":")
-                    val pin = parts.getOrNull(2)?.uppercase()
+                    val pin = parts.getOrNull(2)?.let(BoardPinValidator::normalizePin)
                     val value = parts.getOrNull(3)?.toIntOrNull()
 
                     if (pin != null && value != null) {
-                        displayedControls
-                            .filter { it.type == ControlType.AnalogRead && it.pin.uppercase() == pin }
+                        controls
+                            .filter {
+                                it.type == ControlType.AnalogRead &&
+                                    BoardPinValidator.normalizePin(it.pin) == pin
+                            }
                             .forEach { control ->
                                 analogReadStates[control.id] = value
                             }
@@ -175,440 +173,119 @@ fun ControlsScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .panelGridBackground()
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .background(BgDeep),
+                .background(BgDeep)
+                .dashboardGridBackground(),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(top = 112.dp, bottom = 40.dp),
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 20.dp,
+                    top = 116.dp,
+                    end = 20.dp,
+                    bottom = 32.dp,
+                ),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-SelectedBoardPanelCard(selectedBoard = selectedBoard)
-                    WorkspaceAddButton(onCreateControl = onCreateControl)
-if (displayedControls.isEmpty()) {
-                        Spacer(modifier = Modifier.height(520.dp))
-                    } else {
-                        PanelWidgetRows(
-                            controls = displayedControls.filter { it.type == ControlType.DigitalToggle },
-                            columns = 3,
-                            fillRow = false,
-                        ) { control ->
-when (control.type) {
-                                ControlType.DigitalToggle -> {
-                                    DigitalOutputControlCard(
-                                        control = control,
-                                        isOn = digitalStates[control.id] == true,
-                                        enabled = isConnected,
-                                        onToggle = {
-                                            val newState = !(digitalStates[control.id] ?: false)
-                                            digitalStates[control.id] = newState
-
-                                            onToggleDigitalControl(control, newState)
-                                        },
-                                    )
-                                }
-
-                                ControlType.PwmSlider -> {
-                                    PwmSliderControlCard(
-                                        control = control,
-                                        value = pwmStates[control.id] ?: control.currentValue ?: 0,
-                                        enabled = isConnected,
-                                        onValueChange = { newValue ->
-                                            pwmStates[control.id] = newValue
-
-                                            val now = System.currentTimeMillis()
-                                            val lastSentAt = pwmLastSentAt[control.id] ?: 0L
-                                            val shouldSendNow = now - lastSentAt >= 45L
-
-                                            if (shouldSendNow) {
-                                                pwmLastSentAt[control.id] = now
-                                                pwmLastSentValues[control.id] = newValue
-                                                onSendPwmControl(control, newValue)
-                                            }
-                                        },
-                                        onValueChangeFinished = {
-                                            val finalValue = pwmStates[control.id] ?: control.currentValue ?: 0
-                                            val lastSentValue = pwmLastSentValues[control.id]
-
-                                            if (lastSentValue != finalValue) {
-                                                pwmLastSentAt[control.id] = System.currentTimeMillis()
-                                                pwmLastSentValues[control.id] = finalValue
-                                                onSendPwmControl(control, finalValue)
-                                            }
-                                        },
-                                    )
-                                }
-
-                                ControlType.PulseButton -> {
-                                    PulseControlCard(
-                                        control = control,
-                                        enabled = isConnected,
-                                        onPulse = {
-                                            onSendPulseControl(control)
-                                        },
-                                    )
-                                }
-
-                                ControlType.AnalogRead -> {
-                                    AnalogReadControlCard(
-                                        control = control,
-                                        value = analogReadStates[control.id],
-                                        enabled = isConnected,
-                                        onRead = {
-                                            onReadAnalogControl(control)
-                                        },
-                                    )
-                                }
-
-                                ControlType.ServoSlider -> {
-                                    FutureConfiguredControlCard(control = control)
-                                }
-                            }
-                        }
-                        PanelWidgetRows(
-                            controls = displayedControls.filter { it.type == ControlType.PwmSlider },
-                            columns = 1,
-                            fillRow = true,
-                        ) { control ->
-when (control.type) {
-                                ControlType.DigitalToggle -> {
-                                    DigitalOutputControlCard(
-                                        control = control,
-                                        isOn = digitalStates[control.id] == true,
-                                        enabled = isConnected,
-                                        onToggle = {
-                                            val newState = !(digitalStates[control.id] ?: false)
-                                            digitalStates[control.id] = newState
-
-                                            onToggleDigitalControl(control, newState)
-                                        },
-                                    )
-                                }
-
-                                ControlType.PwmSlider -> {
-                                    PwmSliderControlCard(
-                                        control = control,
-                                        value = pwmStates[control.id] ?: control.currentValue ?: 0,
-                                        enabled = isConnected,
-                                        onValueChange = { newValue ->
-                                            pwmStates[control.id] = newValue
-
-                                            val now = System.currentTimeMillis()
-                                            val lastSentAt = pwmLastSentAt[control.id] ?: 0L
-                                            val shouldSendNow = now - lastSentAt >= 45L
-
-                                            if (shouldSendNow) {
-                                                pwmLastSentAt[control.id] = now
-                                                pwmLastSentValues[control.id] = newValue
-                                                onSendPwmControl(control, newValue)
-                                            }
-                                        },
-                                        onValueChangeFinished = {
-                                            val finalValue = pwmStates[control.id] ?: control.currentValue ?: 0
-                                            val lastSentValue = pwmLastSentValues[control.id]
-
-                                            if (lastSentValue != finalValue) {
-                                                pwmLastSentAt[control.id] = System.currentTimeMillis()
-                                                pwmLastSentValues[control.id] = finalValue
-                                                onSendPwmControl(control, finalValue)
-                                            }
-                                        },
-                                    )
-                                }
-
-                                ControlType.PulseButton -> {
-                                    PulseControlCard(
-                                        control = control,
-                                        enabled = isConnected,
-                                        onPulse = {
-                                            onSendPulseControl(control)
-                                        },
-                                    )
-                                }
-
-                                ControlType.AnalogRead -> {
-                                    AnalogReadControlCard(
-                                        control = control,
-                                        value = analogReadStates[control.id],
-                                        enabled = isConnected,
-                                        onRead = {
-                                            onReadAnalogControl(control)
-                                        },
-                                    )
-                                }
-
-                                ControlType.ServoSlider -> {
-                                    FutureConfiguredControlCard(control = control)
-                                }
-                            }
-                        }
-                        PanelWidgetRows(
-                            controls = displayedControls.filter { it.type == ControlType.PulseButton },
-                            columns = 3,
-                        ) { control ->
-when (control.type) {
-                                ControlType.DigitalToggle -> {
-                                    DigitalOutputControlCard(
-                                        control = control,
-                                        isOn = digitalStates[control.id] == true,
-                                        enabled = isConnected,
-                                        onToggle = {
-                                            val newState = !(digitalStates[control.id] ?: false)
-                                            digitalStates[control.id] = newState
-
-                                            onToggleDigitalControl(control, newState)
-                                        },
-                                    )
-                                }
-
-                                ControlType.PwmSlider -> {
-                                    PwmSliderControlCard(
-                                        control = control,
-                                        value = pwmStates[control.id] ?: control.currentValue ?: 0,
-                                        enabled = isConnected,
-                                        onValueChange = { newValue ->
-                                            pwmStates[control.id] = newValue
-
-                                            val now = System.currentTimeMillis()
-                                            val lastSentAt = pwmLastSentAt[control.id] ?: 0L
-                                            val shouldSendNow = now - lastSentAt >= 45L
-
-                                            if (shouldSendNow) {
-                                                pwmLastSentAt[control.id] = now
-                                                pwmLastSentValues[control.id] = newValue
-                                                onSendPwmControl(control, newValue)
-                                            }
-                                        },
-                                        onValueChangeFinished = {
-                                            val finalValue = pwmStates[control.id] ?: control.currentValue ?: 0
-                                            val lastSentValue = pwmLastSentValues[control.id]
-
-                                            if (lastSentValue != finalValue) {
-                                                pwmLastSentAt[control.id] = System.currentTimeMillis()
-                                                pwmLastSentValues[control.id] = finalValue
-                                                onSendPwmControl(control, finalValue)
-                                            }
-                                        },
-                                    )
-                                }
-
-                                ControlType.PulseButton -> {
-                                    PulseControlCard(
-                                        control = control,
-                                        enabled = isConnected,
-                                        onPulse = {
-                                            onSendPulseControl(control)
-                                        },
-                                    )
-                                }
-
-                                ControlType.AnalogRead -> {
-                                    AnalogReadControlCard(
-                                        control = control,
-                                        value = analogReadStates[control.id],
-                                        enabled = isConnected,
-                                        onRead = {
-                                            onReadAnalogControl(control)
-                                        },
-                                    )
-                                }
-
-                                ControlType.ServoSlider -> {
-                                    FutureConfiguredControlCard(control = control)
-                                }
-                            }
-                        }
-                        PanelWidgetRows(
-                            controls = displayedControls.filter { it.type == ControlType.ServoSlider },
-                            columns = 1,
-                        ) { control ->
-when (control.type) {
-                                ControlType.DigitalToggle -> {
-                                    DigitalOutputControlCard(
-                                        control = control,
-                                        isOn = digitalStates[control.id] == true,
-                                        enabled = isConnected,
-                                        onToggle = {
-                                            val newState = !(digitalStates[control.id] ?: false)
-                                            digitalStates[control.id] = newState
-
-                                            onToggleDigitalControl(control, newState)
-                                        },
-                                    )
-                                }
-
-                                ControlType.PwmSlider -> {
-                                    PwmSliderControlCard(
-                                        control = control,
-                                        value = pwmStates[control.id] ?: control.currentValue ?: 0,
-                                        enabled = isConnected,
-                                        onValueChange = { newValue ->
-                                            pwmStates[control.id] = newValue
-
-                                            val now = System.currentTimeMillis()
-                                            val lastSentAt = pwmLastSentAt[control.id] ?: 0L
-                                            val shouldSendNow = now - lastSentAt >= 45L
-
-                                            if (shouldSendNow) {
-                                                pwmLastSentAt[control.id] = now
-                                                pwmLastSentValues[control.id] = newValue
-                                                onSendPwmControl(control, newValue)
-                                            }
-                                        },
-                                        onValueChangeFinished = {
-                                            val finalValue = pwmStates[control.id] ?: control.currentValue ?: 0
-                                            val lastSentValue = pwmLastSentValues[control.id]
-
-                                            if (lastSentValue != finalValue) {
-                                                pwmLastSentAt[control.id] = System.currentTimeMillis()
-                                                pwmLastSentValues[control.id] = finalValue
-                                                onSendPwmControl(control, finalValue)
-                                            }
-                                        },
-                                    )
-                                }
-
-                                ControlType.PulseButton -> {
-                                    PulseControlCard(
-                                        control = control,
-                                        enabled = isConnected,
-                                        onPulse = {
-                                            onSendPulseControl(control)
-                                        },
-                                    )
-                                }
-
-                                ControlType.AnalogRead -> {
-                                    AnalogReadControlCard(
-                                        control = control,
-                                        value = analogReadStates[control.id],
-                                        enabled = isConnected,
-                                        onRead = {
-                                            onReadAnalogControl(control)
-                                        },
-                                    )
-                                }
-
-                                ControlType.ServoSlider -> {
-                                    FutureConfiguredControlCard(control = control)
-                                }
-                            }
-                        }
-                        PanelWidgetRows(
-                            controls = displayedControls.filter { it.type == ControlType.AnalogRead },
-                            columns = 3,
-                            fillRow = false,
-                        ) { control ->
-when (control.type) {
-                                ControlType.DigitalToggle -> {
-                                    DigitalOutputControlCard(
-                                        control = control,
-                                        isOn = digitalStates[control.id] == true,
-                                        enabled = isConnected,
-                                        onToggle = {
-                                            val newState = !(digitalStates[control.id] ?: false)
-                                            digitalStates[control.id] = newState
-
-                                            onToggleDigitalControl(control, newState)
-                                        },
-                                    )
-                                }
-
-                                ControlType.PwmSlider -> {
-                                    PwmSliderControlCard(
-                                        control = control,
-                                        value = pwmStates[control.id] ?: control.currentValue ?: 0,
-                                        enabled = isConnected,
-                                        onValueChange = { newValue ->
-                                            pwmStates[control.id] = newValue
-
-                                            val now = System.currentTimeMillis()
-                                            val lastSentAt = pwmLastSentAt[control.id] ?: 0L
-                                            val shouldSendNow = now - lastSentAt >= 45L
-
-                                            if (shouldSendNow) {
-                                                pwmLastSentAt[control.id] = now
-                                                pwmLastSentValues[control.id] = newValue
-                                                onSendPwmControl(control, newValue)
-                                            }
-                                        },
-                                        onValueChangeFinished = {
-                                            val finalValue = pwmStates[control.id] ?: control.currentValue ?: 0
-                                            val lastSentValue = pwmLastSentValues[control.id]
-
-                                            if (lastSentValue != finalValue) {
-                                                pwmLastSentAt[control.id] = System.currentTimeMillis()
-                                                pwmLastSentValues[control.id] = finalValue
-                                                onSendPwmControl(control, finalValue)
-                                            }
-                                        },
-                                    )
-                                }
-
-                                ControlType.PulseButton -> {
-                                    PulseControlCard(
-                                        control = control,
-                                        enabled = isConnected,
-                                        onPulse = {
-                                            onSendPulseControl(control)
-                                        },
-                                    )
-                                }
-
-                                ControlType.AnalogRead -> {
-                                    AnalogReadControlCard(
-                                        control = control,
-                                        value = analogReadStates[control.id],
-                                        enabled = isConnected,
-                                        onRead = {
-                                            onReadAnalogControl(control)
-                                        },
-                                    )
-                                }
-
-                                ControlType.ServoSlider -> {
-                                    FutureConfiguredControlCard(control = control)
-                                }
-                            }
-                        }
-
-                    }
-
-                    if (!isConnected) {
-                        NotConnectedCard(
-                            onOpenConnection = onOpenConnection,
-                        )
-                    }
-
-                    if (hasCustomControls) {
-                        ResetControlsCard(
-                            onClearControls = {
-                                displayedControls.clear()
-                                digitalStates.clear()
-                                pwmStates.clear()
-                                analogReadStates.clear()
-                                pwmLastSentAt.clear()
-                                pwmLastSentValues.clear()
-
-                                onClearControls()
+                itemsIndexed(
+                    items = controls,
+                    key = { index, control -> "${control.id.ifBlank { "control" }}_$index" },
+                    span = { _, control -> GridItemSpan(control.type.gridSpan()) },
+                ) { _, control ->
+                    when (control.type) {
+                        ControlType.DigitalToggle -> ButtonWidget(
+                            control = control,
+                            isOn = digitalStates[control.id] == true,
+                            enabled = isConnected,
+                            onToggle = {
+                                val newState = !(digitalStates[control.id] ?: false)
+                                digitalStates[control.id] = newState
+                                onToggleDigitalControl(control, newState)
                             },
+                        )
+
+                        ControlType.PwmSlider -> SliderWidget(
+                            control = control,
+                            value = sliderStates[control.id] ?: control.currentValue ?: 0,
+                            enabled = isConnected,
+                            valueRange = 0f..255f,
+                            valueLabel = { it.toString() },
+                            onValueChanged = { value ->
+                                sendThrottledSliderValue(
+                                    control = control,
+                                    value = value,
+                                    sliderStates = sliderStates,
+                                    sliderLastSentAt = sliderLastSentAt,
+                                    sliderLastSentValues = sliderLastSentValues,
+                                    onSendValue = onSendPwmControl,
+                                )
+                            },
+                            onValueFinished = {
+                                sendFinalSliderValue(
+                                    control = control,
+                                    fallbackValue = control.currentValue ?: 0,
+                                    sliderStates = sliderStates,
+                                    sliderLastSentAt = sliderLastSentAt,
+                                    sliderLastSentValues = sliderLastSentValues,
+                                    onSendValue = onSendPwmControl,
+                                )
+                            },
+                        )
+
+                        ControlType.ServoSlider -> SliderWidget(
+                            control = control,
+                            value = sliderStates[control.id] ?: control.currentValue ?: 90,
+                            enabled = isConnected,
+                            valueRange = 0f..180f,
+                            valueLabel = { "${it}°" },
+                            onValueChanged = { value ->
+                                sendThrottledSliderValue(
+                                    control = control,
+                                    value = value,
+                                    sliderStates = sliderStates,
+                                    sliderLastSentAt = sliderLastSentAt,
+                                    sliderLastSentValues = sliderLastSentValues,
+                                    onSendValue = onSendServoControl,
+                                )
+                            },
+                            onValueFinished = {
+                                sendFinalSliderValue(
+                                    control = control,
+                                    fallbackValue = control.currentValue ?: 90,
+                                    sliderStates = sliderStates,
+                                    sliderLastSentAt = sliderLastSentAt,
+                                    sliderLastSentValues = sliderLastSentValues,
+                                    onSendValue = onSendServoControl,
+                                )
+                            },
+                        )
+
+                        ControlType.PulseButton -> PulseWidget(
+                            control = control,
+                            enabled = isConnected,
+                            onPulse = { onSendPulseControl(control) },
+                        )
+
+                        ControlType.AnalogRead -> ReadWidget(
+                            control = control,
+                            value = analogReadStates[control.id],
+                            enabled = isConnected,
+                            onRead = { onReadAnalogControl(control) },
                         )
                     }
                 }
             }
 
-            LabLinkTopAppBar(
-                title = "Controles",
-                isBluetoothConnected = isConnected,
+            DashboardTopBar(
+                title = "LabLink",
+                subtitle = selectedBoard?.displayName ?: "Painel",
+                isConnected = isConnected,
                 onOpenDrawer = { drawerOpen = true },
+                onAddModule = onCreateControl,
+                onPing = onSendPing,
+                onSettings = onOpenControls,
             )
 
             AnimatedVisibility(
@@ -647,806 +324,408 @@ when (control.type) {
 }
 
 @Composable
-private fun HeaderSection(
+private fun DashboardTopBar(
+    title: String,
+    subtitle: String,
     isConnected: Boolean,
-    hasCustomControls: Boolean,
+    onOpenDrawer: () -> Unit,
+    onAddModule: () -> Unit,
+    onPing: () -> Unit,
+    onSettings: () -> Unit,
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp, bottom = 4.dp),
+            .background(TopBarDark.copy(alpha = 0.98f))
+            .border(1.dp, BorderSoft)
+            .statusBarsPadding()
+            .height(104.dp)
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text(
-            text = if (hasCustomControls) "Meus controles" else "Controle seu projeto",
-            color = WhiteSoft,
-            fontSize = 28.sp,
-            lineHeight = 34.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = (-0.4).sp,
+        Icon(
+            imageVector = Icons.Rounded.Menu,
+            contentDescription = null,
+            tint = WhiteSoft,
+            modifier = Modifier
+                .size(31.dp)
+                .clickable { onOpenDrawer() },
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+        ) {
+            Text(
+                text = title,
+                color = WhiteSoft,
+                fontSize = 23.sp,
+                lineHeight = 27.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
 
-        Text(
-            text = if (isConnected) {
-                "Controle os pinos configurados no seu projeto Arduino."
-            } else {
-                "Conecte um dispositivo Bluetooth para controlar o Arduino."
-            },
-            color = WhiteSoft.copy(alpha = 0.78f),
-            fontSize = 16.sp,
-            lineHeight = 24.sp,
+            Text(
+                text = subtitle,
+                color = TextDim,
+                fontSize = 11.sp,
+                lineHeight = 13.sp,
+                maxLines = 1,
+            )
+        }
+
+        ToolbarIcon(
+            icon = Icons.Rounded.Settings,
+            onClick = onSettings,
         )
+
+        ToolbarIcon(
+            icon = Icons.Rounded.AddCircleOutline,
+            onClick = onAddModule,
+        )
+
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .background(
+                    color = IconButtonDark,
+                    shape = CircleShape,
+                )
+                .border(
+                    width = 1.dp,
+                    color = if (isConnected) AccentGreen.copy(alpha = 0.65f) else BorderSoft,
+                    shape = CircleShape,
+                )
+                .clickable { onPing() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.PlayArrow,
+                contentDescription = null,
+                tint = if (isConnected) AccentGreen else TextDim,
+                modifier = Modifier.size(39.dp),
+            )
+        }
     }
 }
 
 @Composable
-private fun DigitalOutputControlCard(
+private fun ToolbarIcon(
+    icon: ImageVector,
+    onClick: () -> Unit,
+) {
+    Icon(
+        imageVector = icon,
+        contentDescription = null,
+        tint = WhiteSoft.copy(alpha = 0.86f),
+        modifier = Modifier
+            .background(IconButtonDark, CircleShape)
+            .border(1.dp, BorderSoft, CircleShape)
+            .padding(5.dp)
+            .size(31.dp)
+            .clickable { onClick() },
+    )
+}
+
+private fun sendThrottledSliderValue(
+    control: LabLinkControl,
+    value: Int,
+    sliderStates: MutableMap<String, Int>,
+    sliderLastSentAt: MutableMap<String, Long>,
+    sliderLastSentValues: MutableMap<String, Int>,
+    onSendValue: (LabLinkControl, Int) -> Unit,
+) {
+    sliderStates[control.id] = value
+
+    val now = System.currentTimeMillis()
+    val lastSentAt = sliderLastSentAt[control.id] ?: 0L
+
+    if (now - lastSentAt >= 45L) {
+        sliderLastSentAt[control.id] = now
+        sliderLastSentValues[control.id] = value
+        onSendValue(control, value)
+    }
+}
+
+private fun sendFinalSliderValue(
+    control: LabLinkControl,
+    fallbackValue: Int,
+    sliderStates: MutableMap<String, Int>,
+    sliderLastSentAt: MutableMap<String, Long>,
+    sliderLastSentValues: MutableMap<String, Int>,
+    onSendValue: (LabLinkControl, Int) -> Unit,
+) {
+    val finalValue = sliderStates[control.id] ?: fallbackValue
+
+    if (sliderLastSentValues[control.id] != finalValue) {
+        sliderLastSentAt[control.id] = System.currentTimeMillis()
+        sliderLastSentValues[control.id] = finalValue
+        onSendValue(control, finalValue)
+    }
+}
+
+@Composable
+private fun ButtonWidget(
     control: LabLinkControl,
     isOn: Boolean,
     enabled: Boolean,
     onToggle: () -> Unit,
 ) {
-    val stateText = if (isOn) "ON" else "OFF"
-    val stateColor = if (isOn) AccentGreen else AccentPurple
-    val surfaceColor = if (isOn) {
-        AccentGreen.copy(alpha = 0.12f)
-    } else {
-        CardDark.copy(alpha = 0.96f)
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(surfaceColor, RoundedCornerShape(18.dp))
-            .border(
-                width = 1.dp,
-                color = stateColor.copy(alpha = if (isOn) 0.82f else 0.42f),
-                shape = RoundedCornerShape(18.dp),
-            )
-            .clickable(enabled = enabled) { onToggle() }
-            .padding(10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = control.name.ifBlank { "BUTTON" }.uppercase(),
-            color = TextDim,
-            fontSize = 10.sp,
-            lineHeight = 12.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-        )
-
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .border(
-                    width = 2.dp,
-                    color = stateColor,
-                    shape = CircleShape,
-                )
-                .background(
-                    color = if (isOn) stateColor.copy(alpha = 0.16f) else Color.Transparent,
-                    shape = CircleShape,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = stateText,
-                color = stateColor,
-                fontSize = 18.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-
-        Text(
-            text = control.pin,
-            color = TextDim,
-            fontSize = 10.sp,
-            lineHeight = 12.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-        )
-    }
-}
-
-@Composable
-private fun LargeToggle(
-    isOn: Boolean,
-    enabled: Boolean,
-) {
-    Box(
-        modifier = Modifier
-            .size(width = 116.dp, height = 58.dp)
-            .background(
-                color = if (isOn) AccentYellow else Color.White.copy(alpha = 0.08f),
-                shape = RoundedCornerShape(999.dp),
-            )
-            .border(
-                width = 1.dp,
-                color = if (isOn) AccentYellow.copy(alpha = 0.65f) else BorderSoft,
-                shape = RoundedCornerShape(999.dp),
-            )
-            .alpha(if (enabled) 1f else 0.70f),
-        contentAlignment = Alignment.CenterStart,
+    SquareWidgetShell(
+        control = control,
+        accent = AccentGreen,
+        enabled = enabled,
+        onClick = onToggle,
     ) {
         Box(
             modifier = Modifier
-                .offset(x = if (isOn) 58.dp else 6.dp)
-                .size(46.dp)
-                .background(
-                    color = if (isOn) Color.Black else WhiteSoft.copy(alpha = 0.88f),
-                    shape = CircleShape,
-                ),
+                .fillMaxWidth()
+                .height(82.dp),
             contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.PowerSettingsNew,
-                contentDescription = null,
-                tint = if (isOn) AccentYellow else CardDark,
-                modifier = Modifier.size(22.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun PwmSliderControlCard(
-    control: LabLinkControl,
-    value: Int,
-    enabled: Boolean,
-    onValueChange: (Int) -> Unit,
-    onValueChangeFinished: () -> Unit,
-) {
-    val safeValue = value.coerceIn(0, 255)
-    val percentage = ((safeValue / 255f) * 100).toInt()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .alpha(if (enabled) 1f else 0.52f)
-            .background(CardDark, RoundedCornerShape(30.dp))
-            .border(
-                width = 1.dp,
-                color = if (safeValue > 0) AccentPurple.copy(alpha = 0.55f) else BorderSoft,
-                shape = RoundedCornerShape(30.dp),
-            )
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(AccentPurple.copy(alpha = 0.16f), CircleShape),
+                    .size(74.dp)
+                    .border(
+                        width = 2.dp,
+                        color = if (isOn) AccentGreen else AccentGreen.copy(alpha = 0.72f),
+                        shape = CircleShape,
+                    )
+                    .background(
+                        color = if (isOn) AccentGreen.copy(alpha = 0.14f) else Color.Transparent,
+                        shape = CircleShape,
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Tune,
-                    contentDescription = null,
-                    tint = AccentPurple,
-                    modifier = Modifier.size(24.dp),
+                Text(
+                    text = if (isOn) "ON" else "OFF",
+                    color = if (isOn) AccentGreen else AccentGreen.copy(alpha = 0.84f),
+                    fontSize = 17.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.Bold,
                 )
             }
-
-            Column(
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    text = control.name,
-                    color = WhiteSoft,
-                    fontSize = 18.sp,
-                    lineHeight = 23.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-
-                Spacer(modifier = Modifier.height(5.dp))
-
-                Text(
-                    text = "${control.pinLabel} • PWM",
-                    color = TextDim,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                    fontFamily = FontFamily.Monospace,
-                )
-            }
-        }
-
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = safeValue.toString(),
-                color = WhiteSoft,
-                fontSize = 40.sp,
-                lineHeight = 46.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = (-0.8).sp,
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "$percentage%",
-                color = TextDim,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-            )
-        }
-
-        Slider(
-            value = safeValue.toFloat(),
-            onValueChange = { newValue ->
-                if (enabled) {
-                    onValueChange(newValue.toInt().coerceIn(0, 255))
-                }
-            },
-            onValueChangeFinished = {
-                if (enabled) {
-                    onValueChangeFinished()
-                }
-            },
-            enabled = enabled,
-            valueRange = 0f..255f,
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = "0",
-                color = TextDim,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace,
-            )
-
-            Text(
-                text = "255",
-                color = TextDim,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace,
-            )
         }
     }
 }
 
 @Composable
-private fun PulseControlCard(
+private fun PulseWidget(
     control: LabLinkControl,
     enabled: Boolean,
     onPulse: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .alpha(if (enabled) 1f else 0.52f)
-            .background(CardDark, RoundedCornerShape(22.dp))
-            .border(
-                width = 1.dp,
-                color = BorderSoft,
-                shape = RoundedCornerShape(22.dp),
-            )
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp),
+    SquareWidgetShell(
+        control = control,
+        accent = AccentYellow,
+        enabled = enabled,
+        onClick = onPulse,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(9.dp),
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(82.dp),
+            contentAlignment = Alignment.Center,
         ) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
-                    .background(AccentYellow.copy(alpha = 0.16f), CircleShape),
+                    .size(66.dp)
+                    .background(AccentYellow.copy(alpha = 0.16f), CircleShape)
+                    .border(2.dp, AccentYellow.copy(alpha = 0.82f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Bolt,
                     contentDescription = null,
                     tint = AccentYellow,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    text = control.name,
-                    color = WhiteSoft,
-                    fontSize = 12.sp,
-                    lineHeight = 23.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-
-                Spacer(modifier = Modifier.height(5.dp))
-
-                Text(
-                    text = "${control.pinLabel} • Pulso momentâneo",
-                    color = TextDim,
-                    fontSize = 13.sp,
-                    lineHeight = 15.sp,
-                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.size(31.dp),
                 )
             }
         }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(62.dp)
-                .background(
-                    color = if (enabled) AccentYellow else Color.White.copy(alpha = 0.06f),
-                    shape = RoundedCornerShape(22.dp),
-                )
-                .border(
-                    width = 1.dp,
-                    color = if (enabled) AccentYellow.copy(alpha = 0.65f) else BorderSoft,
-                    shape = RoundedCornerShape(22.dp),
-                )
-                .clickable(enabled = enabled) { onPulse() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "Enviar pulso",
-                color = if (enabled) Color.Black else TextDim,
-                fontSize = 12.sp,
-                lineHeight = 21.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-
-        Text(
-            text = if (enabled) {
-                "Ao tocar, o pino liga por 500 ms e desliga automaticamente."
-            } else {
-                "Conecte o Bluetooth para enviar o pulso."
-            },
-            color = TextDim,
-            fontSize = 13.sp,
-            lineHeight = 15.sp,
-        )
     }
 }
 
 @Composable
-private fun AnalogReadControlCard(
+private fun ReadWidget(
     control: LabLinkControl,
     value: Int?,
     enabled: Boolean,
     onRead: () -> Unit,
 ) {
-    val displayValue = value?.toString() ?: "--"
-    val percentage = value?.let { ((it.coerceIn(0, 1023) / 1023f) * 100).toInt() }
+    SquareWidgetShell(
+        control = control,
+        accent = AccentPurple,
+        enabled = enabled,
+        onClick = onRead,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(82.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = value?.toString() ?: "--",
+                color = WhiteSoft,
+                fontSize = 33.sp,
+                lineHeight = 36.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
 
-    Column(
+@Composable
+private fun SliderWidget(
+    control: LabLinkControl,
+    value: Int,
+    enabled: Boolean,
+    valueRange: ClosedFloatingPointRange<Float>,
+    valueLabel: (Int) -> String,
+    onValueChanged: (Int) -> Unit,
+    onValueFinished: () -> Unit,
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(126.dp)
             .alpha(if (enabled) 1f else 0.52f)
-            .background(CardDark, RoundedCornerShape(22.dp))
-            .border(
-                width = 1.dp,
-                color = if (value != null) AccentGreen.copy(alpha = 0.45f) else BorderSoft,
-                shape = RoundedCornerShape(22.dp),
-            )
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp),
+            .background(WidgetPanel.copy(alpha = 0.98f), RoundedCornerShape(2.dp))
+            .border(1.dp, Color.Black.copy(alpha = 0.55f), RoundedCornerShape(2.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(9.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .background(AccentGreen.copy(alpha = 0.16f), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.GraphicEq,
-                    contentDescription = null,
-                    tint = AccentGreen,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+        ModuleIconBox(
+            icon = control.type.icon(),
+            accent = control.type.accentColor(),
+            size = 54,
+        )
 
-            Column(
-                modifier = Modifier.weight(1f),
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = control.name.uppercase(),
+                        color = WhiteSoft.copy(alpha = 0.82f),
+                        fontSize = 11.sp,
+                        lineHeight = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+
+                    Text(
+                        text = control.pinLabel,
+                        color = TextDim,
+                        fontSize = 10.sp,
+                        lineHeight = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1,
+                    )
+                }
+
                 Text(
-                    text = control.name,
-                    color = WhiteSoft,
-                    fontSize = 12.sp,
-                    lineHeight = 23.sp,
+                    text = valueLabel(value),
+                    color = control.type.accentColor(),
+                    fontSize = 22.sp,
+                    lineHeight = 25.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
-
-                Spacer(modifier = Modifier.height(5.dp))
-
-                Text(
-                    text = "${control.pinLabel} • Entrada analógica",
-                    color = TextDim,
-                    fontSize = 13.sp,
-                    lineHeight = 15.sp,
-                    fontFamily = FontFamily.Monospace,
-                )
             }
-        }
 
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = displayValue,
-                color = WhiteSoft,
-                fontSize = 42.sp,
-                lineHeight = 48.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = (-0.8).sp,
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = if (percentage == null) "Aguardando leitura" else "$percentage% de 1023",
-                color = TextDim,
-                fontSize = 13.sp,
-                lineHeight = 15.sp,
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(62.dp)
-                .background(
-                    color = if (enabled) AccentGreen else Color.White.copy(alpha = 0.06f),
-                    shape = RoundedCornerShape(22.dp),
-                )
-                .border(
-                    width = 1.dp,
-                    color = if (enabled) AccentGreen.copy(alpha = 0.65f) else BorderSoft,
-                    shape = RoundedCornerShape(22.dp),
-                )
-                .clickable(enabled = enabled) { onRead() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "Ler agora",
-                color = if (enabled) Color.Black else TextDim,
-                fontSize = 12.sp,
-                lineHeight = 21.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-
-        Text(
-            text = if (enabled) {
-                "Toca para ler o valor analógico atual."
-            } else {
-                "Conecte o Bluetooth para fazer a leitura."
-            },
-            color = TextDim,
-            fontSize = 13.sp,
-            lineHeight = 15.sp,
-        )
-    }
-}
-
-@Composable
-private fun FutureConfiguredControlCard(control: LabLinkControl) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(24.dp))
-            .border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
-            .padding(18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(control.type.accentColor().copy(alpha = 0.16f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = control.type.icon(),
-                contentDescription = null,
-                tint = control.type.accentColor(),
-                modifier = Modifier.size(24.dp),
-            )
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-        ) {
-            Text(
-                text = control.name,
-                color = WhiteSoft,
-                fontSize = 17.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-
-            Spacer(modifier = Modifier.height(5.dp))
-
-            Text(
-                text = "${control.type.displayName} • ${control.pinLabel}",
-                color = TextDim,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-                fontFamily = FontFamily.Monospace,
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "Controle visual preparado. Ação será ativada em etapa futura.",
-                color = TextDim,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
+            Slider(
+                value = value.toFloat(),
+                onValueChange = { onValueChanged(it.toInt()) },
+                onValueChangeFinished = onValueFinished,
+                enabled = enabled,
+                valueRange = valueRange,
             )
         }
     }
 }
 
 @Composable
-private fun EmptyControlsCard() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(26.dp))
-            .border(1.dp, BorderSoft, RoundedCornerShape(26.dp))
-            .padding(22.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .background(AccentPurple.copy(alpha = 0.16f), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Lightbulb,
-                    contentDescription = null,
-                    tint = AccentPurple,
-                    modifier = Modifier.size(25.dp),
-                )
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = "Painel vazio",
-                    color = WhiteSoft,
-                    fontSize = 18.sp,
-                    lineHeight = 23.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-
-                Text(
-                    text = "Use o botão + para adicionar módulos e montar sua interface.",
-                    color = TextDim,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                )
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(20.dp))
-                .border(1.dp, BorderSoft, RoundedCornerShape(20.dp))
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            EmptyPanelHint(
-                number = "1",
-                text = "Toque em Adicionar módulo no topo do painel.",
-            )
-
-            EmptyPanelHint(
-                number = "2",
-                text = "Escolha o tipo: Liga / Desliga, PWM, Pulso, Servo ou Leitura.",
-            )
-
-            EmptyPanelHint(
-                number = "3",
-                text = "Selecione um pino disponível da placa e salve o controle.",
-            )
-        }
-
-        Text(
-            text = "Os módulos adicionados aparecerão como widgets sobre a grade do painel.",
-            color = AccentGreen,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
-            fontWeight = FontWeight.Medium,
-        )
-    }
-}
-
-@Composable
-private fun EmptyPanelHint(
-    number: String,
-    text: String,
+private fun SquareWidgetShell(
+    control: LabLinkControl,
+    accent: Color,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit,
 ) {
-    Row(
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(126.dp)
+            .alpha(if (enabled) 1f else 0.52f)
+            .background(WidgetPanel.copy(alpha = 0.98f), RoundedCornerShape(2.dp))
+            .border(1.dp, Color.Black.copy(alpha = 0.55f), RoundedCornerShape(2.dp))
+            .clickable(enabled = enabled) { onClick() }
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .background(AccentPurple.copy(alpha = 0.18f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = number,
-                color = AccentPurple,
-                fontSize = 12.sp,
-                lineHeight = 14.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
+        Text(
+            text = control.name.uppercase(),
+            color = WhiteSoft.copy(alpha = 0.78f),
+            fontSize = 10.sp,
+            lineHeight = 12.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
+
+        content()
 
         Text(
-            text = text,
-            color = TextDim,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-            modifier = Modifier.weight(1f),
+            text = BoardPinValidator.normalizePin(control.pin),
+            color = accent.copy(alpha = 0.72f),
+            fontSize = 9.sp,
+            lineHeight = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
         )
     }
 }
+
 @Composable
-private fun NotConnectedCard(
-    onOpenConnection: () -> Unit,
+private fun ModuleIconBox(
+    icon: ImageVector,
+    accent: Color,
+    size: Int,
 ) {
-    Row(
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(22.dp))
-            .border(1.dp, BorderSoft, RoundedCornerShape(22.dp))
-            .clickable { onOpenConnection() }
-            .padding(18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+            .size(size.dp)
+            .background(Color.Black.copy(alpha = 0.22f), RoundedCornerShape(4.dp))
+            .border(1.dp, accent.copy(alpha = 0.42f), RoundedCornerShape(4.dp)),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .background(AccentPurple.copy(alpha = 0.16f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Tune,
-                contentDescription = null,
-                tint = AccentPurple,
-                modifier = Modifier.size(22.dp),
-            )
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-        ) {
-            Text(
-                text = "Conectar dispositivo",
-                color = WhiteSoft,
-                fontSize = 16.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "Abra a tela Bluetooth para conectar o HC-05 ou HC-06.",
-                color = TextDim,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-            )
-        }
-    }
-}
-
-@Composable
-private fun CreateControlCard(onCreateControl: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(22.dp))
-            .border(1.dp, BorderSoft, RoundedCornerShape(22.dp))
-            .clickable { onCreateControl() }
-            .padding(16.dp),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Add,
-                contentDescription = null,
-                tint = TextDim,
-                modifier = Modifier.size(18.dp),
-            )
-
-            Text(
-                text = "Adicionar novo módulo",
-                color = WhiteSoft,
-                fontSize = 15.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Escolha o tipo de controle, quantidade e pinos usados no seu projeto.",
-            color = TextDim,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size((size * 0.48f).dp),
         )
     }
 }
 
-@Composable
-private fun ResetControlsCard(onClearControls: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(22.dp))
-            .border(1.dp, BorderSoft, RoundedCornerShape(22.dp))
-            .clickable { onClearControls() }
-            .padding(16.dp),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Tune,
-                contentDescription = null,
-                tint = TextDim,
-                modifier = Modifier.size(18.dp),
-            )
+private fun ControlType.gridSpan(): Int {
+    return when (this) {
+        ControlType.PwmSlider,
+        ControlType.ServoSlider -> 3
 
-            Text(
-                text = "Redefinir controles",
-                color = WhiteSoft,
-                fontSize = 15.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Limpa os controles criados e volta para o controle padrão do Pino 13.",
-            color = TextDim,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-        )
+        ControlType.DigitalToggle,
+        ControlType.PulseButton,
+        ControlType.AnalogRead -> 1
     }
 }
 
@@ -1462,7 +741,7 @@ private fun ControlType.icon(): ImageVector {
 
 private fun ControlType.accentColor(): Color {
     return when (this) {
-        ControlType.DigitalToggle -> AccentYellow
+        ControlType.DigitalToggle -> AccentGreen
         ControlType.PwmSlider -> AccentPurple
         ControlType.ServoSlider -> AccentGreen
         ControlType.PulseButton -> AccentYellow
@@ -1470,102 +749,49 @@ private fun ControlType.accentColor(): Color {
     }
 }
 
+private fun Modifier.dashboardGridBackground(): Modifier {
+    return drawBehind {
+        val dotStep = 14.dp.toPx()
+        val majorStep = dotStep * 8f
+        val dotColor = Color.White.copy(alpha = 0.055f)
+        val lineColor = Color.White.copy(alpha = 0.036f)
 
-
-@Composable
-private fun PanelActionBar(
-    selectedBoardName: String?,
-    isConnected: Boolean,
-    onCreateControl: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark.copy(alpha = 0.94f), RoundedCornerShape(24.dp))
-            .border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            Text(
-                text = "Painel do projeto",
-                color = WhiteSoft,
-                fontSize = 17.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.Bold,
+        var x = 0f
+        while (x <= size.width) {
+            drawLine(
+                color = lineColor,
+                start = Offset(x, 0f),
+                end = Offset(x, size.height),
+                strokeWidth = 1f,
             )
-
-            Text(
-                text = buildString {
-                    append(selectedBoardName ?: "Placa não definida")
-                    append(" • ")
-                    append(if (isConnected) "Bluetooth conectado" else "Bluetooth desconectado")
-                },
-                color = if (isConnected) AccentGreen else TextDim,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                fontWeight = FontWeight.Medium,
-            )
+            x += majorStep
         }
 
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(AccentPurple, CircleShape)
-                .clickable { onCreateControl() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Add,
-                contentDescription = null,
-                tint = Color.Black,
-                modifier = Modifier.size(28.dp),
+        var y = 0f
+        while (y <= size.height) {
+            drawLine(
+                color = lineColor,
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = 1f,
             )
+            y += majorStep
         }
-    }
-}
-@Composable
-private fun SelectedBoardPanelCard(
-    selectedBoard: BoardProfile?,
-) {
-    if (selectedBoard == null) {
-        return
-    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardDark, RoundedCornerShape(24.dp))
-            .border(1.dp, BorderSoft, RoundedCornerShape(24.dp))
-            .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp),
-    ) {
-        Text(
-            text = "Placa do painel",
-            color = TextDim,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
-            fontWeight = FontWeight.Medium,
-        )
-
-        Text(
-            text = selectedBoard.displayName,
-            color = WhiteSoft,
-            fontSize = 18.sp,
-            lineHeight = 23.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-
-        Text(
-            text = "Os controles deste painel usam os pinos disponíveis para esta placa.",
-            color = TextDim,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-        )
+        var dotX = 0f
+        while (dotX <= size.width) {
+            var dotY = 0f
+            while (dotY <= size.height) {
+                drawCircle(
+                    color = dotColor,
+                    radius = 1f,
+                    center = Offset(dotX, dotY),
+                    style = Stroke(width = 1f),
+                )
+                dotY += dotStep
+            }
+            dotX += dotStep
+        }
     }
 }
 
@@ -1582,13 +808,24 @@ private fun ControlsScreenPreview() {
                 ),
                 lastReceivedMessage = "OK:LED_ON",
             ),
-            controls = listOf(DefaultControls.pin13DigitalOutput),
-            controlsRefreshKey = 0,
+            controls = listOf(
+                DefaultControls.pin13DigitalOutput,
+                LabLinkControl(
+                    id = "pwm_d5_preview",
+                    type = ControlType.PwmSlider,
+                    name = "PWM",
+                    pin = "5",
+                    minValue = 0,
+                    maxValue = 255,
+                    currentValue = 128,
+                ),
+            ),
             onSendPing = {},
             onToggleDigitalControl = { _, _ -> },
             onSendPwmControl = { _, _ -> },
+            onSendServoControl = { _, _ -> },
             onSendPulseControl = {},
-            onReadAnalogControl = { _ -> },
+            onReadAnalogControl = {},
             onTurnLedOn = {},
             onTurnLedOff = {},
             onOpenHome = {},
@@ -1600,153 +837,3 @@ private fun ControlsScreenPreview() {
         )
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-private fun Modifier.panelGridBackground(): Modifier {
-    return drawBehind {
-        val smallStep = 16.dp.toPx()
-        val largeStep = smallStep * 5f
-
-        val dotColor = Color.White.copy(alpha = 0.055f)
-        val lineColor = Color.White.copy(alpha = 0.035f)
-
-        var x = 0f
-        while (x <= size.width) {
-            drawLine(
-                color = lineColor,
-                start = Offset(x, 0f),
-                end = Offset(x, size.height),
-                strokeWidth = 1f,
-            )
-            x += largeStep
-        }
-
-        var y = 0f
-        while (y <= size.height) {
-            drawLine(
-                color = lineColor,
-                start = Offset(0f, y),
-                end = Offset(size.width, y),
-                strokeWidth = 1f,
-            )
-            y += largeStep
-        }
-
-        var dotX = 0f
-        while (dotX <= size.width) {
-            var dotY = 0f
-            while (dotY <= size.height) {
-                drawCircle(
-                    color = dotColor,
-                    radius = 1.15f,
-                    center = Offset(dotX, dotY),
-                    style = Stroke(width = 1f),
-                )
-                dotY += smallStep
-            }
-            dotX += smallStep
-        }
-    }
-}
-
-
-
-
-@Composable
-private fun WorkspaceAddButton(
-    onCreateControl: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(AccentPurple, CircleShape)
-                .clickable { onCreateControl() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Add,
-                contentDescription = null,
-                tint = Color.Black,
-                modifier = Modifier.size(28.dp),
-            )
-        }
-    }
-}
-
-
-@Composable
-private fun PanelWidgetRows(
-    controls: List<LabLinkControl>,
-    columns: Int,
-    fillRow: Boolean = false,
-    content: @Composable (LabLinkControl) -> Unit,
-) {
-    if (controls.isEmpty()) {
-        return
-    }
-
-    BoxWithConstraints(
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        val spacing = 10.dp
-        val cellSize = (maxWidth - (spacing * 2)) / 3
-
-        controls.chunked(columns).forEach { rowControls ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing),
-                verticalAlignment = Alignment.Top,
-            ) {
-                rowControls.forEach { control ->
-                    Box(
-                        modifier = if (fillRow) {
-                            Modifier
-                                .fillMaxWidth()
-                                .height(cellSize)
-                        } else {
-                            Modifier
-                                .weight(1f)
-                                .height(cellSize)
-                        },
-                    ) {
-                        content(control)
-                    }
-                }
-
-                if (!fillRow) {
-                    repeat(columns - rowControls.size) {
-                        Spacer(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(cellSize),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-

@@ -12,6 +12,7 @@ object BoardPinValidator {
 
         return board.pins.filter { pin ->
             supportsControlType(pin = pin, controlType = controlType) &&
+                pin.isRecommended &&
                 normalizePin(pin.id) !in normalizedUsedPins
         }
     }
